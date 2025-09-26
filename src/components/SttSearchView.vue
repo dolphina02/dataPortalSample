@@ -373,7 +373,7 @@
               </span>
             </div>
             <div class="history-meta">
-              <span class="history-time">{{ formatTime(item.timestamp) }}</span>
+              <span class="history-time">{{ formatHistoryTime(item.timestamp) }}</span>
               <span class="history-results">{{ item.resultCount }}개 결과</span>
             </div>
           </div>
@@ -392,9 +392,16 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import IconSystem from './IconSystem.vue'
 
 // Reactive state
-const isListening = ref(false)
-const transcript = ref('')
-const transcriptConfidence = ref(0)
+const audioFile = ref(null)
+const audioUrl = ref('')
+const isPlaying = ref(false)
+const isProcessing = ref(false)
+const processingProgress = ref(0)
+const audioDuration = ref(0)
+const currentTime = ref(0)
+const volume = ref(1)
+const isDragOver = ref(false)
+const sttResults = ref([])
 const selectedLanguage = ref('ko-KR')
 const extractedKeywords = ref([])
 const selectedKeywords = ref([])
@@ -408,8 +415,9 @@ const resultFilter = ref({
   sort: 'relevance'
 })
 
-// Speech Recognition
-let recognition = null
+// Audio element reference
+const audioElement = ref(null)
+const fileInput = ref(null)
 
 // Sample data
 const sampleKeywords = [
@@ -472,69 +480,192 @@ const filteredResults = computed(() => {
   return filtered
 })
 
+const progressPercentage = computed(() => {
+  if (!audioDuration.value) return 0
+  return (currentTime.value / audioDuration.value) * 100
+})
+
+const averageConfidence = computed(() => {
+  if (!sttResults.value.length) return 0
+  const total = sttResults.value.reduce((sum, result) => sum + result.confidence, 0)
+  return Math.round(total / sttResults.value.length)
+})
+
 // Methods
-const initSpeechRecognition = () => {
-  if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-    recognition = new SpeechRecognition()
-    
-    recognition.continuous = true
-    recognition.interimResults = true
-    recognition.lang = selectedLanguage.value
-    
-    recognition.onstart = () => {
-      isListening.value = true
-    }
-    
-    recognition.onresult = (event) => {
-      let finalTranscript = ''
-      let confidence = 0
-      
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const result = event.results[i]
-        if (result.isFinal) {
-          finalTranscript += result[0].transcript
-          confidence = Math.round(result[0].confidence * 100)
-        }
-      }
-      
-      if (finalTranscript) {
-        transcript.value = finalTranscript
-        transcriptConfidence.value = confidence
-        extractKeywords(finalTranscript)
-      }
-    }
-    
-    recognition.onerror = (event) => {
-      console.error('Speech recognition error:', event.error)
-      isListening.value = false
-    }
-    
-    recognition.onend = () => {
-      isListening.value = false
-    }
+const triggerFileInput = () => {
+  fileInput.value?.click()
+}
+
+const handleFileSelect = (event) => {
+  const file = event.target.files[0]
+  if (file) {
+    setAudioFile(file)
   }
 }
 
-const toggleListening = () => {
-  if (!recognition) {
-    alert('음성 인식이 지원되지 않는 브라우저입니다.')
-    return
-  }
+const handleFileDrop = (event) => {
+  event.preventDefault()
+  isDragOver.value = false
   
-  if (isListening.value) {
-    recognition.stop()
-  } else {
-    recognition.lang = selectedLanguage.value
-    recognition.start()
+  const file = event.dataTransfer.files[0]
+  if (file && file.type.startsWith('audio/')) {
+    setAudioFile(file)
   }
 }
 
-const clearTranscript = () => {
-  transcript.value = ''
-  transcriptConfidence.value = 0
+const setAudioFile = (file) => {
+  audioFile.value = file
+  audioUrl.value = URL.createObjectURL(file)
+  sttResults.value = []
   extractedKeywords.value = []
   selectedKeywords.value = []
+}
+
+const clearAudioFile = () => {
+  if (audioUrl.value) {
+    URL.revokeObjectURL(audioUrl.value)
+  }
+  audioFile.value = null
+  audioUrl.value = ''
+  sttResults.value = []
+  extractedKeywords.value = []
+  selectedKeywords.value = []
+  isPlaying.value = false
+  currentTime.value = 0
+  audioDuration.value = 0
+}
+
+const playAudio = () => {
+  if (audioElement.value) {
+    audioElement.value.play()
+    isPlaying.value = true
+  }
+}
+
+const pauseAudio = () => {
+  if (audioElement.value) {
+    audioElement.value.pause()
+    isPlaying.value = false
+  }
+}
+
+const updateAudioDuration = () => {
+  if (audioElement.value) {
+    audioDuration.value = audioElement.value.duration
+  }
+}
+
+const updateProgress = () => {
+  if (audioElement.value) {
+    currentTime.value = audioElement.value.currentTime
+  }
+}
+
+const audioEnded = () => {
+  isPlaying.value = false
+  currentTime.value = 0
+}
+
+const seekAudio = (event) => {
+  if (audioElement.value && audioDuration.value) {
+    const rect = event.target.getBoundingClientRect()
+    const percent = (event.clientX - rect.left) / rect.width
+    const newTime = percent * audioDuration.value
+    audioElement.value.currentTime = newTime
+    currentTime.value = newTime
+  }
+}
+
+const seekToSegment = (time) => {
+  if (audioElement.value) {
+    audioElement.value.currentTime = time
+    currentTime.value = time
+    if (!isPlaying.value) {
+      playAudio()
+    }
+  }
+}
+
+const updateVolume = () => {
+  if (audioElement.value) {
+    audioElement.value.volume = volume.value
+  }
+}
+
+const processAudio = async () => {
+  if (!audioFile.value) return
+  
+  isProcessing.value = true
+  processingProgress.value = 0
+  
+  // Simulate STT processing
+  const interval = setInterval(() => {
+    processingProgress.value += 10
+    if (processingProgress.value >= 100) {
+      clearInterval(interval)
+      
+      // Mock STT results
+      sttResults.value = [
+        {
+          startTime: 0,
+          endTime: 3.5,
+          text: '안녕하세요 고객 데이터 분석 결과를 확인하고 싶습니다',
+          confidence: 95
+        },
+        {
+          startTime: 3.5,
+          endTime: 7.2,
+          text: '2024년 매출 현황과 트렌드를 보여주세요',
+          confidence: 92
+        },
+        {
+          startTime: 7.2,
+          endTime: 10.8,
+          text: '특히 보험 상품별 판매 실적이 궁금합니다',
+          confidence: 88
+        }
+      ]
+      
+      isProcessing.value = false
+      extractKeywordsFromSTT()
+    }
+  }, 200)
+}
+
+const extractKeywordsFromSTT = () => {
+  const allText = sttResults.value.map(r => r.text).join(' ')
+  extractKeywords(allText)
+}
+
+const copyAllTranscripts = async () => {
+  const allText = sttResults.value.map(r => r.text).join('\n')
+  try {
+    await navigator.clipboard.writeText(allText)
+    // Show toast notification
+  } catch (err) {
+    console.error('Failed to copy transcripts:', err)
+  }
+}
+
+const formatFileSize = (bytes) => {
+  if (bytes === 0) return '0 Bytes'
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+const formatDuration = (seconds) => {
+  const mins = Math.floor(seconds / 60)
+  const secs = Math.floor(seconds % 60)
+  return `${mins}:${secs.toString().padStart(2, '0')}`
+}
+
+const formatTime = (seconds) => {
+  if (!seconds) return '0:00'
+  const mins = Math.floor(seconds / 60)
+  const secs = Math.floor(seconds % 60)
+  return `${mins}:${secs.toString().padStart(2, '0')}`
 }
 
 const extractKeywords = (text) => {
@@ -562,11 +693,13 @@ const clearSelectedKeywords = () => {
 }
 
 const searchWithTranscript = () => {
-  performSearch(transcript.value, extractedKeywords.value.map(k => k.text))
+  const allText = sttResults.value.map(r => r.text).join(' ')
+  performSearch(allText, extractedKeywords.value.map(k => k.text))
 }
 
 const searchWithKeywords = () => {
-  performSearch(transcript.value, selectedKeywords.value)
+  const allText = sttResults.value.map(r => r.text).join(' ')
+  performSearch(allText, selectedKeywords.value)
 }
 
 const performSearch = (query, keywords) => {
@@ -594,17 +727,9 @@ const performSearch = (query, keywords) => {
 }
 
 const refreshKeywords = () => {
-  if (transcript.value) {
-    extractKeywords(transcript.value)
-  }
-}
-
-const copyTranscript = async () => {
-  try {
-    await navigator.clipboard.writeText(transcript.value)
-    // Show toast notification
-  } catch (err) {
-    console.error('Failed to copy transcript:', err)
+  if (sttResults.value.length) {
+    const allText = sttResults.value.map(r => r.text).join(' ')
+    extractKeywords(allText)
   }
 }
 
@@ -626,7 +751,15 @@ const openResult = (result) => {
 }
 
 const loadFromHistory = (item) => {
-  transcript.value = item.transcript
+  // Create mock STT results from history
+  sttResults.value = [
+    {
+      startTime: 0,
+      endTime: 5,
+      text: item.transcript,
+      confidence: 90
+    }
+  ]
   selectedKeywords.value = [...item.keywords]
   extractedKeywords.value = sampleKeywords.filter(k => item.keywords.includes(k.text))
 }
@@ -642,7 +775,7 @@ const clearHistory = () => {
   searchHistory.value = []
 }
 
-const formatTime = (timestamp) => {
+const formatHistoryTime = (timestamp) => {
   return new Intl.DateTimeFormat('ko-KR', {
     month: 'short',
     day: 'numeric',
@@ -653,12 +786,13 @@ const formatTime = (timestamp) => {
 
 // Lifecycle
 onMounted(() => {
-  initSpeechRecognition()
+  // Initialize audio context if needed
 })
 
 onUnmounted(() => {
-  if (recognition && isListening.value) {
-    recognition.stop()
+  // Clean up audio URL
+  if (audioUrl.value) {
+    URL.revokeObjectURL(audioUrl.value)
   }
 })
 </script>
@@ -711,7 +845,7 @@ onUnmounted(() => {
 }
 
 /* Section Styles */
-.voice-input-section,
+.audio-upload-section,
 .keywords-section,
 .results-section,
 .help-section,
@@ -793,160 +927,96 @@ onUnmounted(() => {
   color: var(--text-primary);
 }
 
-/* Voice Input */
-.voice-input-container {
+/* Audio Upload */
+.audio-upload-container {
   padding: var(--space-5);
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-6);
 }
 
-.voice-visualizer {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-6);
+.file-upload-area {
   border: 2px dashed var(--border-primary);
   border-radius: var(--radius-lg);
-  background: var(--surface-hover);
+  padding: var(--space-8);
+  text-align: center;
+  cursor: pointer;
   transition: var(--transition-fast);
+  background: var(--surface-hover);
+  position: relative;
 }
 
-.voice-visualizer.active {
+.file-upload-area:hover,
+.file-upload-area.drag-over {
   border-color: var(--lina-orange);
   background: color-mix(in srgb, var(--lina-orange) 5%, transparent);
 }
 
-.visualizer-bars {
+.file-upload-area.has-file {
+  border-style: solid;
+  border-color: var(--success);
+  background: color-mix(in srgb, var(--success) 5%, transparent);
+}
+
+.file-input {
+  display: none;
+}
+
+.upload-prompt {
   display: flex;
-  align-items: end;
-  gap: 3px;
-  height: 60px;
-  margin-bottom: var(--space-4);
-}
-
-.visualizer-bar {
-  width: 4px;
-  background: var(--lina-orange);
-  border-radius: 2px;
-  transition: height 0.3s ease;
-  animation: wave 1.5s ease-in-out infinite;
-}
-
-@keyframes wave {
-  0%, 100% {
-    transform: scaleY(0.3);
-  }
-  50% {
-    transform: scaleY(1);
-  }
-}
-
-.voice-status {
-  text-align: center;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
   color: var(--text-secondary);
 }
 
-.status-idle,
-.status-listening,
-.status-complete {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.listening-animation {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.pulse-ring {
-  position: absolute;
-  width: 60px;
-  height: 60px;
-  border: 2px solid var(--lina-orange);
-  border-radius: 50%;
-  animation: pulse-ring 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
-}
-
-.pulse-ring:nth-child(2) {
-  animation-delay: 0.7s;
-}
-
-.pulse-ring:nth-child(3) {
-  animation-delay: 1.4s;
-}
-
-@keyframes pulse-ring {
-  0% {
-    transform: scale(0.8);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(1.5);
-    opacity: 0;
-  }
-}
-
-/* Transcript */
-.transcript-container {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-.transcript-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.transcript-header h4 {
+.upload-prompt h4 {
   margin: 0;
   color: var(--text-primary);
 }
 
-.transcript-confidence {
+.supported-formats {
   font-size: var(--fs-sm);
-  color: var(--success);
-  font-weight: var(--fw-semibold);
+  color: var(--text-tertiary);
+  background: var(--surface);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
 }
 
-.transcript-content {
+.file-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.file-details {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: 1;
+}
+
+.file-meta {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-1);
 }
 
-.transcript-text {
-  width: 100%;
-  padding: var(--space-4);
-  border: 1px solid var(--border-primary);
-  border-radius: var(--radius-md);
-  font-size: var(--fs-base);
-  line-height: var(--lh-relaxed);
-  resize: vertical;
-  background: var(--surface);
+.file-name {
+  font-weight: var(--fw-semibold);
   color: var(--text-primary);
 }
 
-.transcript-text:focus {
-  outline: none;
-  border-color: var(--lina-orange);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lina-orange) 20%, transparent);
+.file-size,
+.file-duration {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
 }
 
-.transcript-actions {
+.file-actions {
   display: flex;
   gap: var(--space-2);
-  justify-content: flex-end;
 }
 
-.transcript-btn {
+.file-action-btn {
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -960,12 +1030,234 @@ onUnmounted(() => {
   color: var(--text-secondary);
 }
 
-.transcript-btn:hover {
+.file-action-btn:hover:not(:disabled) {
   background: var(--surface-hover);
   color: var(--text-primary);
 }
 
-.transcript-btn.primary {
+.file-action-btn.primary {
+  background: var(--lina-orange);
+  color: white;
+  border-color: var(--lina-orange);
+}
+
+.file-action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Audio Player */
+.audio-player {
+  margin-top: var(--space-5);
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+}
+
+.player-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.player-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border-primary);
+  background: var(--surface);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  color: var(--text-secondary);
+}
+
+.player-btn:hover {
+  background: var(--lina-orange);
+  color: white;
+  border-color: var(--lina-orange);
+}
+
+.progress-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.progress-bar {
+  height: 6px;
+  background: var(--surface-hover);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  position: relative;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--lina-orange);
+  border-radius: var(--radius-full);
+  transition: width 0.1s ease;
+}
+
+.time-display {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+
+.volume-control {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.volume-slider {
+  width: 80px;
+}
+
+/* Processing Status */
+.processing-status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  background: var(--surface);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  margin-top: var(--space-5);
+}
+
+.processing-animation {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.processing-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--surface-hover);
+  border-top: 3px solid var(--lina-orange);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.processing-text h4 {
+  margin: 0 0 var(--space-1) 0;
+  color: var(--text-primary);
+}
+
+.processing-text p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+/* STT Results */
+.stt-results {
+  margin-top: var(--space-5);
+  background: var(--surface);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.results-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--border-primary);
+  background: var(--surface-hover);
+}
+
+.results-header h4 {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.results-confidence {
+  font-size: var(--fs-sm);
+  color: var(--success);
+  font-weight: var(--fw-semibold);
+}
+
+.results-segments {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.result-segment {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--border-primary);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.result-segment:hover {
+  background: var(--surface-hover);
+}
+
+.result-segment:last-child {
+  border-bottom: none;
+}
+
+.segment-time {
+  font-size: var(--fs-sm);
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  min-width: 100px;
+}
+
+.segment-text {
+  flex: 1;
+  color: var(--text-primary);
+}
+
+.segment-confidence {
+  font-size: var(--fs-sm);
+  color: var(--success);
+  font-weight: var(--fw-semibold);
+  min-width: 50px;
+  text-align: right;
+}
+
+.results-actions {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+  padding: var(--space-4);
+  border-top: 1px solid var(--border-primary);
+  background: var(--surface-hover);
+}
+
+.results-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-primary);
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  color: var(--text-secondary);
+}
+
+.results-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.results-btn.primary {
   background: var(--lina-orange);
   color: white;
   border-color: var(--lina-orange);
@@ -1376,11 +1668,12 @@ onUnmounted(() => {
 }
 
 /* Responsive */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 @media (max-width: 1024px) {
-  .voice-input-container {
-    grid-template-columns: 1fr;
-  }
-  
   .help-categories {
     grid-template-columns: 1fr;
   }
@@ -1416,6 +1709,21 @@ onUnmounted(() => {
     flex-direction: row;
     width: 100%;
     justify-content: flex-end;
+  }
+  
+  .file-info {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .player-controls {
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  
+  .processing-status {
+    flex-direction: column;
+    text-align: center;
   }
 }
 </style>
