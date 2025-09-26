@@ -151,6 +151,9 @@ import IconSystem from './components/IconSystem.vue'
 import HomeView from './components/HomeView.vue'
 import SearchView from './components/SearchView.vue'
 import QueryView from './components/QueryView.vue'
+import TextToSqlView from './components/TextToSqlView.vue'
+import ModelManagementView from './components/ModelManagementView.vue'
+import SttSearchView from './components/SttSearchView.vue'
 import DashboardView from './components/DashboardView.vue'
 import ApiView from './components/ApiView.vue'
 
@@ -169,6 +172,9 @@ const mainMenuItems = [
 
 const toolMenuItems = [
   { id: 'query', icon: 'code', label: 'SQL Editor' },
+  { id: 'text-to-sql', icon: 'zap', label: 'Text To SQL' },
+  { id: 'model-management', icon: 'box', label: '모델 관리' },
+  { id: 'stt-search', icon: 'message-circle', label: 'STT 키워드 검색' },
   { id: 'api', icon: 'api', label: 'API Explorer' }
 ]
 
@@ -177,6 +183,9 @@ const viewComponents = {
   home: HomeView,
   search: SearchView,
   query: QueryView,
+  'text-to-sql': TextToSqlView,
+  'model-management': ModelManagementView,
+  'stt-search': SttSearchView,
   dashboard: DashboardView,
   api: ApiView
 }
