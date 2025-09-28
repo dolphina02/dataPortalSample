@@ -215,14 +215,12 @@ vue-data-portal/
 
 ## 📞 지원 및 문의
 
-- **개발팀**: data-platform@linalife.co.kr
-- **기술 지원**: tech-support@linalife.co.kr
-- **사용자 가이드**: [내부 위키 링크]
+- **코드작성자**: dolphina02@gmail.com
 
 ## 🔄 업데이트 로그
 
 ### v1.0.0 (2024-01-20)
-- 초기 릴리즈
+- 초기 릴리즈 (mockup)
 - 기본 대시보드 및 검색 기능
 - SQL 쿼리 도구
 - Text-to-SQL 변환 기능
