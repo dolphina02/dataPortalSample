@@ -1,6 +1,13 @@
 <template>
   <div class="app-container">
     <div class="app-layout" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
+      <!-- Mobile Overlay -->
+      <div 
+        v-if="!sidebarCollapsed && isMobile"
+        class="mobile-overlay"
+        @click="sidebarCollapsed = true"
+      ></div>
+      
       <!-- Sidebar Navigation -->
       <aside class="sidebar" :class="{ collapsed: sidebarCollapsed }">
         <div class="sidebar-content">
@@ -133,6 +140,15 @@
 
       <!-- Main Content -->
        <main class="main-content">
+         <!-- Mobile Menu Button -->
+         <button 
+           class="mobile-menu-btn"
+           @click="toggleSidebar"
+           :class="{ active: !sidebarCollapsed }"
+         >
+           <IconSystem name="menu" :size="24" />
+         </button>
+         
          <div class="content-wrapper">
           <Transition name="page" mode="out-in">
             <component 
@@ -193,6 +209,7 @@ import ChubbDataView from './components/ChubbDataView.vue'
 const sidebarCollapsed = ref(false)
 const activeView = ref('home')
 const toasts = ref([])
+const isMobile = ref(false)
 let toastId = 0
 
 // Menu configuration
@@ -289,7 +306,8 @@ const getToastIcon = (type) => {
 }
 
 const handleResize = () => {
-  if (window.innerWidth <= 768) {
+  isMobile.value = window.innerWidth <= 768
+  if (isMobile.value) {
     sidebarCollapsed.value = true
   }
 }
@@ -834,8 +852,58 @@ onUnmounted(() => {
   transition: transform var(--transition-normal);
 }
 
+/* Mobile Menu Button */
+.mobile-menu-btn {
+  display: none;
+  position: fixed;
+  top: var(--space-4);
+  left: var(--space-4);
+  z-index: calc(var(--z-modal) + 1);
+  width: 48px;
+  height: 48px;
+  background: var(--lina-yellow);
+  border: none;
+  border-radius: var(--radius-lg);
+  color: var(--gray-800);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  box-shadow: var(--shadow-lg);
+}
+
+.mobile-menu-btn:hover {
+  background: var(--lina-yellow-light);
+  transform: scale(1.05);
+}
+
+.mobile-menu-btn.active {
+  background: var(--lina-orange);
+  color: white;
+}
+
+/* Mobile Overlay */
+.mobile-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: calc(var(--z-modal) - 1);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
+  .mobile-menu-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .mobile-overlay {
+    display: block;
+  }
+  
   .main-content {
     margin-left: 0;
   }
@@ -855,6 +923,7 @@ onUnmounted(() => {
   
   .content-wrapper {
     padding: var(--space-4);
+    padding-top: calc(var(--space-4) + 64px); /* 햄버거 버튼 공간 확보 */
   }
   
   .toast-container {
