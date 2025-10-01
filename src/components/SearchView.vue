@@ -61,8 +61,11 @@
             <div class="report-title-section">
               <div class="title-row">
                 <h3 class="report-title">{{ report.title }}</h3>
-                <div class="report-type-badge" :class="report.reportType">
-                  {{ report.reportType === 'internal' ? '내부' : '외부' }}
+                <div class="badges">
+                  <div v-if="report.isNew" class="new-badge">NEW</div>
+                  <div class="report-type-badge" :class="report.reportType">
+                    {{ report.reportType === 'internal' ? '내부' : '외부' }}
+                  </div>
                 </div>
               </div>
               <p class="report-description">{{ report.description }}</p>
@@ -121,12 +124,6 @@
           <div class="viewer-actions">
             <button class="viewer-btn" @click="toggleFullscreen" :title="isFullscreen ? '창 모드' : '전체화면'">
               <IconSystem :name="isFullscreen ? 'minimize' : 'maximize'" :size="16" />
-            </button>
-            <button class="viewer-btn" @click="downloadReport(selectedReport)" title="다운로드">
-              <IconSystem name="download" :size="16" />
-            </button>
-            <button class="viewer-btn" @click="printReport" title="인쇄">
-              <IconSystem name="printer" :size="16" />
             </button>
             <button class="viewer-btn" @click="closeViewer" title="닫기">
               <IconSystem name="x" :size="16" />
@@ -285,7 +282,8 @@ const reports = [
     size: 2456789,
     tags: ['보험통계', '월보', '업계동향'],
     pdfUrl: '/보험통계월보_25년 7월호(367호).pdf',
-    reportType: 'external'
+    reportType: 'external',
+    isNew: true
   },
   {
     id: 2,
@@ -298,7 +296,8 @@ const reports = [
     size: 1834567,
     tags: ['생명보험', '월간', '업계리포트'],
     pdfUrl: '/월간생명보험_25년9월호.pdf',
-    reportType: 'external'
+    reportType: 'external',
+    isNew: true
   },
   {
     id: 3,
@@ -741,13 +740,35 @@ const nextSlide = () => {
   flex: 1;
 }
 
+.badges {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+.new-badge {
+  font-size: 9px;
+  font-weight: var(--fw-bold);
+  padding: 2px 5px;
+  border-radius: var(--radius-sm);
+  line-height: 1;
+  background: #ef4444;
+  color: white;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
 .report-type-badge {
   font-size: 10px;
   font-weight: var(--fw-bold);
   padding: 2px 6px;
   border-radius: var(--radius-sm);
   line-height: 1;
-  flex-shrink: 0;
 }
 
 .report-type-badge.internal {

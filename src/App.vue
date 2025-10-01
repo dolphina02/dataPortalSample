@@ -58,7 +58,7 @@
                   <Transition name="fade">
                     <span v-show="!sidebarCollapsed" class="nav-item-text">{{ item.label }}</span>
                   </Transition>
-                  <div v-if="item.badge && !sidebarCollapsed" class="nav-badge">{{ item.badge }}</div>
+                  <div v-if="item.launch && !sidebarCollapsed" class="launch-badge">{{ item.launch }}</div>
                 </button>
               </div>
             </div>
@@ -82,7 +82,7 @@
                   <Transition name="fade">
                     <span v-show="!sidebarCollapsed" class="nav-item-text">{{ item.label }}</span>
                   </Transition>
-                  <div v-if="item.badge && !sidebarCollapsed" class="nav-badge">{{ item.badge }}</div>
+                  <div v-if="item.launch && !sidebarCollapsed" class="launch-badge">{{ item.launch }}</div>
                 </button>
               </div>
             </div>
@@ -106,7 +106,7 @@
                   <Transition name="fade">
                     <span v-show="!sidebarCollapsed" class="nav-item-text">{{ item.label }}</span>
                   </Transition>
-                  <div v-if="item.badge && !sidebarCollapsed" class="nav-badge">{{ item.badge }}</div>
+                  <div v-if="item.launch && !sidebarCollapsed" class="launch-badge">{{ item.launch }}</div>
                 </button>
               </div>
             </div>
@@ -192,6 +192,7 @@ import DashboardView from './components/DashboardView.vue'
 import DashboardStoreView from './components/DashboardStoreView.vue'
 import ApiView from './components/ApiView.vue'
 import ChubbDataView from './components/ChubbDataView.vue'
+import DataCatalogView from './components/DataCatalogView.vue'
 
 // Reactive state
 const sidebarCollapsed = ref(false)
@@ -202,22 +203,23 @@ let toastId = 0
 
 // Menu configuration
 const mainMenuItems = [
-  { id: 'home', icon: 'home', label: '홈' },
-  { id: 'dashboard-store', icon: 'grid', label: 'Dashboard Store' },
-  { id: 'dashboard', icon: 'activity', label: 'My Dashboard', badge: '2' },
-  { id: 'search', icon: 'file-text', label: 'Data Report' },
-  { id: 'chubb-data', icon: 'database', label: 'Chubb Data' }
+  { id: 'home', icon: 'home', label: '홈', launch: '25년 4Q' },
+  { id: 'dashboard-store', icon: 'grid', label: 'Dashboard Store', launch: '25년 4Q' },
+  { id: 'dashboard', icon: 'activity', label: 'My Dashboard', launch: '25년 4Q' },
+  { id: 'search', icon: 'file-text', label: 'Data Report', launch: '26년 1Q' },
+  { id: 'chubb-data', icon: 'database', label: 'Chubb Data', launch: '26년 1Q' }
 ]
 
 const analysisMenuItems = [
-  { id: 'query', icon: 'code', label: 'SQL Editor' },
-  { id: 'text-to-sql', icon: 'zap', label: 'Text To SQL' },
-  { id: 'stt-search', icon: 'message-circle', label: 'STT 키워드 검색' }
+  { id: 'query', icon: 'code', label: 'SQL Editor', launch: '26년 1Q' },
+  { id: 'text-to-sql', icon: 'zap', label: 'Text To SQL', launch: '26년 2Q' },
+  { id: 'stt-search', icon: 'message-circle', label: 'STT 키워드 검색', launch: '26년 1Q' }
 ]
 
 const managementMenuItems = [
-  { id: 'model-management', icon: 'box', label: '모델 관리' },
-  { id: 'api', icon: 'api', label: 'API Explorer' }
+  { id: 'data-catalog', icon: 'book-open', label: 'Data Catalog', launch: '26년 1Q' },
+  { id: 'model-management', icon: 'box', label: '모델 관리', launch: '26년 2Q' },
+  { id: 'api', icon: 'api', label: 'API Explorer', launch: '26년 3Q' }
 ]
 
 // View components mapping
@@ -231,6 +233,7 @@ const viewComponents = {
   dashboard: DashboardView,
   'dashboard-store': DashboardStoreView,
   api: ApiView,
+  'data-catalog': DataCatalogView,
   'chubb-data': ChubbDataView
 }
 
@@ -588,6 +591,35 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.launch-badge {
+  background: var(--surface-active);
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: var(--fw-medium);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-primary);
+  white-space: nowrap;
+  opacity: 0.8;
+  transition: var(--transition-fast);
+}
+
+.nav-item:hover .launch-badge {
+  background: #ef4444;
+  color: white;
+  border-color: #ef4444;
+  opacity: 1;
+  font-weight: var(--fw-bold);
+}
+
+.nav-item.active .launch-badge {
+  background: #dc2626;
+  color: white;
+  border-color: #dc2626;
+  opacity: 1;
+  font-weight: var(--fw-bold);
 }
 
 

@@ -35,7 +35,10 @@
           @click="viewDashboard(dashboard)"
         >
           <div class="card-content">
-            <h3 class="card-title">{{ dashboard.title }}</h3>
+            <div class="card-header">
+              <h3 class="card-title">{{ dashboard.title }}</h3>
+              <div v-if="dashboard.isNew" class="new-badge">NEW</div>
+            </div>
             <p class="card-description">{{ dashboard.description }}</p>
             
             <div class="card-tags">
@@ -186,7 +189,8 @@ const featuredDashboards = [
     rating: 4.7,
     downloads: '1.3k',
     image: '/sampleDashboard2.png',
-    tags: ['청구', 'claim', '보험', '처리현황']
+    tags: ['청구', 'claim', '보험', '처리현황'],
+    isNew: true
   },
   {
     id: 5,
@@ -196,7 +200,8 @@ const featuredDashboards = [
     rating: 4.5,
     downloads: '980',
     image: '/sampleDashboard.png',
-    tags: ['APE', 'KPI', '영업실적', '보험료']
+    tags: ['APE', 'KPI', '영업실적', '보험료'],
+    isNew: true
   },
   {
     id: 6,
@@ -349,11 +354,36 @@ const filteredDashboards = computed(() => {
   border-color: var(--lina-orange);
 }
 
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+
 .card-title {
   font-size: var(--fs-lg);
   font-weight: var(--fw-semibold);
   color: var(--text-primary);
-  margin: 0 0 var(--space-3) 0;
+  margin: 0;
+  flex: 1;
+}
+
+.new-badge {
+  font-size: 9px;
+  font-weight: var(--fw-bold);
+  padding: 2px 5px;
+  border-radius: var(--radius-sm);
+  line-height: 1;
+  background: #ef4444;
+  color: white;
+  animation: pulse 2s infinite;
+  flex-shrink: 0;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
 }
 
 .card-description {
