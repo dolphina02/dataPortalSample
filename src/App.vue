@@ -1,12 +1,7 @@
 <template>
   <div class="app-container">
     <div class="app-layout" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
-      <!-- Mobile Overlay -->
-      <div 
-        v-if="!sidebarCollapsed && isMobile"
-        class="mobile-overlay"
-        @click="sidebarCollapsed = true"
-      ></div>
+
       
       <!-- Sidebar Navigation -->
       <aside class="sidebar" :class="{ collapsed: sidebarCollapsed }">
@@ -140,14 +135,7 @@
 
       <!-- Main Content -->
        <main class="main-content">
-         <!-- Mobile Menu Button -->
-         <button 
-           class="mobile-menu-btn"
-           @click="toggleSidebar"
-           :class="{ active: !sidebarCollapsed }"
-         >
-           <IconSystem name="menu" :size="24" />
-         </button>
+
          
          <div class="content-wrapper">
           <Transition name="page" mode="out-in">
@@ -308,7 +296,13 @@ const getToastIcon = (type) => {
 const handleResize = () => {
   isMobile.value = window.innerWidth <= 768
   if (isMobile.value) {
-    sidebarCollapsed.value = true
+    sidebarCollapsed.value = true // 모바일에서는 기본적으로 접힌 상태
+  } else {
+    // 데스크톱에서는 이전 상태 복원
+    const savedState = localStorage.getItem('sidebar-collapsed')
+    if (savedState !== null) {
+      sidebarCollapsed.value = JSON.parse(savedState)
+    }
   }
 }
 
@@ -852,78 +846,34 @@ onUnmounted(() => {
   transition: transform var(--transition-normal);
 }
 
-/* Mobile Menu Button */
-.mobile-menu-btn {
-  display: none;
-  position: fixed;
-  top: var(--space-4);
-  left: var(--space-4);
-  z-index: calc(var(--z-modal) + 1);
-  width: 48px;
-  height: 48px;
-  background: var(--lina-yellow);
-  border: none;
-  border-radius: var(--radius-lg);
-  color: var(--gray-800);
-  cursor: pointer;
-  transition: var(--transition-fast);
-  box-shadow: var(--shadow-lg);
-}
-
-.mobile-menu-btn:hover {
-  background: var(--lina-yellow-light);
-  transform: scale(1.05);
-}
-
-.mobile-menu-btn.active {
-  background: var(--lina-orange);
-  color: white;
-}
-
-/* Mobile Overlay */
-.mobile-overlay {
-  display: none;
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: calc(var(--z-modal) - 1);
-}
-
 /* Responsive */
 @media (max-width: 768px) {
-  .mobile-menu-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  
-  .mobile-overlay {
-    display: block;
-  }
-  
   .main-content {
-    margin-left: 0;
+    margin-left: 80px; /* 접힌 사이드바 공간 확보 */
   }
   
   .sidebar-collapsed .main-content {
-    margin-left: 0;
+    margin-left: 80px;
   }
   
   .sidebar {
-    transform: translateX(-100%);
-    z-index: var(--z-modal);
+    width: 80px; /* 모바일에서도 접힌 상태로 표시 */
+    transform: translateX(0); /* 항상 보이도록 */
+  }
+  
+  .sidebar.collapsed {
+    width: 80px;
+    transform: translateX(0);
   }
   
   .sidebar:not(.collapsed) {
-    transform: translateX(0);
+    width: 280px; /* 펼쳤을 때만 전체 너비 */
+    z-index: var(--z-modal);
+    box-shadow: var(--shadow-lg);
   }
   
   .content-wrapper {
     padding: var(--space-4);
-    padding-top: calc(var(--space-4) + 64px); /* 햄버거 버튼 공간 확보 */
   }
   
   .toast-container {
