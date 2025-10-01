@@ -62,11 +62,34 @@
 
             <div class="nav-section">
               <Transition name="fade">
-                <div v-show="!sidebarCollapsed" class="nav-section-title">도구</div>
+                <div v-show="!sidebarCollapsed" class="nav-section-title">분석 도구</div>
               </Transition>
               <div class="nav-items">
                 <button 
-                  v-for="item in toolMenuItems" 
+                  v-for="item in analysisMenuItems" 
+                  :key="item.id"
+                  class="nav-item" 
+                  :class="{ active: activeView === item.id }"
+                  @click="setActiveView(item.id)"
+                >
+                  <div class="nav-item-icon">
+                    <IconSystem :name="item.icon" :size="20" />
+                  </div>
+                  <Transition name="fade">
+                    <span v-show="!sidebarCollapsed" class="nav-item-text">{{ item.label }}</span>
+                  </Transition>
+                  <div v-if="item.badge && !sidebarCollapsed" class="nav-badge">{{ item.badge }}</div>
+                </button>
+              </div>
+            </div>
+
+            <div class="nav-section">
+              <Transition name="fade">
+                <div v-show="!sidebarCollapsed" class="nav-section-title">관리</div>
+              </Transition>
+              <div class="nav-items">
+                <button 
+                  v-for="item in managementMenuItems" 
                   :key="item.id"
                   class="nav-item" 
                   :class="{ active: activeView === item.id }"
@@ -170,11 +193,14 @@ const mainMenuItems = [
   { id: 'search', icon: 'search', label: '데이터 탐색' }
 ]
 
-const toolMenuItems = [
+const analysisMenuItems = [
   { id: 'query', icon: 'code', label: 'SQL Editor' },
   { id: 'text-to-sql', icon: 'zap', label: 'Text To SQL' },
+  { id: 'stt-search', icon: 'message-circle', label: 'STT 키워드 검색' }
+]
+
+const managementMenuItems = [
   { id: 'model-management', icon: 'box', label: '모델 관리' },
-  { id: 'stt-search', icon: 'message-circle', label: 'STT 키워드 검색' },
   { id: 'api', icon: 'api', label: 'API Explorer' }
 ]
 

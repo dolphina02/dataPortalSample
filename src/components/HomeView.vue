@@ -34,18 +34,51 @@
         </div>
 
         <div class="quick-actions">
+          <button class="quick-action primary" @click="createNewDashboard">
+            <IconSystem name="plus" :size="20" />
+            <span>새 대시보드</span>
+          </button>
+          <button class="quick-action" @click="importData">
+            <IconSystem name="upload" :size="20" />
+            <span>데이터 가져오기</span>
+          </button>
           <button class="quick-action" @click="quickAction('sql')">
             <IconSystem name="code" :size="20" />
             <span>SQL 쿼리</span>
-          </button>
-          <button class="quick-action" @click="quickAction('dashboard')">
-            <IconSystem name="dashboard" :size="20" />
-            <span>대시보드</span>
           </button>
           <button class="quick-action" @click="quickAction('api')">
             <IconSystem name="api" :size="20" />
             <span>API 테스트</span>
           </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- New Updates Banner -->
+    <section class="updates-banner" v-if="newUpdates.length">
+      <div class="banner-content">
+        <div class="banner-icon">
+          <IconSystem name="info" :size="24" />
+        </div>
+        <div class="banner-messages">
+          <div 
+            v-for="update in newUpdates" 
+            :key="update.id"
+            class="update-message"
+            :class="update.type"
+          >
+            <div class="update-content">
+              <span class="update-text">{{ update.message }}</span>
+              <span class="update-time">{{ update.time }}</span>
+            </div>
+            <button class="update-action" @click="viewUpdate(update)" v-if="update.actionText">
+              {{ update.actionText }}
+              <IconSystem name="arrow-right" :size="14" />
+            </button>
+            <button class="update-close" @click="dismissUpdate(update.id)">
+              <IconSystem name="x" :size="16" />
+            </button>
+          </div>
         </div>
       </div>
     </section>
@@ -280,6 +313,53 @@ const quickAction = (action) => {
   // 해당 페이지로 이동
 }
 
+const createNewDashboard = () => {
+  console.log('새 대시보드 생성')
+  // Navigate to dashboard creation
+}
+
+const importData = () => {
+  console.log('데이터 가져오기')
+  // Open data import modal
+}
+
+// New updates data
+const newUpdates = ref([
+  {
+    id: 1,
+    type: 'dashboard',
+    message: '새로운 "고객 행동 분석" 대시보드가 추가되었습니다',
+    time: '2시간 전',
+    actionText: '확인하기'
+  },
+  {
+    id: 2,
+    type: 'data',
+    message: '2025년 1분기 매출 데이터가 업데이트되었습니다',
+    time: '5시간 전',
+    actionText: '데이터 보기'
+  },
+  {
+    id: 3,
+    type: 'feature',
+    message: 'Text-to-SQL 기능에 새로운 AI 모델이 적용되었습니다',
+    time: '1일 전',
+    actionText: '사용해보기'
+  }
+])
+
+const viewUpdate = (update) => {
+  console.log('업데이트 보기:', update)
+  // Navigate to relevant page based on update type
+}
+
+const dismissUpdate = (updateId) => {
+  const index = newUpdates.value.findIndex(update => update.id === updateId)
+  if (index > -1) {
+    newUpdates.value.splice(index, 1)
+  }
+}
+
 const openDataset = (dataset) => {
   console.log('데이터셋 열기:', dataset.title)
   // 데이터셋 상세 페이지로 이동
@@ -473,6 +553,155 @@ const openDataset = (dataset) => {
   color: var(--lina-orange);
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
+}
+
+.quick-action.primary {
+  background: var(--lina-orange);
+  color: white;
+  border-color: var(--lina-orange);
+}
+
+.quick-action.primary:hover {
+  background: var(--lina-yellow);
+  border-color: var(--lina-yellow);
+  color: var(--text-primary);
+}
+
+/* Updates Banner */
+.updates-banner {
+  background: linear-gradient(135deg, 
+    color-mix(in srgb, var(--info) 8%, var(--surface)) 0%, 
+    color-mix(in srgb, var(--info) 4%, var(--surface)) 100%);
+  border: 1px solid color-mix(in srgb, var(--info) 20%, var(--border-primary));
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  margin-bottom: var(--space-8);
+  position: relative;
+  overflow: hidden;
+}
+
+.updates-banner::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, 
+    var(--info) 0%, 
+    var(--lina-yellow) 50%, 
+    var(--info) 100%);
+}
+
+.banner-content {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+}
+
+.banner-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: var(--info);
+  color: white;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.banner-messages {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.update-message {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  transition: var(--transition-fast);
+}
+
+.update-message:hover {
+  background: var(--surface-hover);
+  transform: translateX(4px);
+}
+
+.update-message.dashboard {
+  border-left: 4px solid var(--lina-orange);
+}
+
+.update-message.data {
+  border-left: 4px solid var(--success);
+}
+
+.update-message.feature {
+  border-left: 4px solid var(--info);
+}
+
+.update-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.update-text {
+  color: var(--text-primary);
+  font-weight: var(--fw-medium);
+  line-height: var(--lh-snug);
+}
+
+.update-time {
+  color: var(--text-tertiary);
+  font-size: var(--fs-sm);
+}
+
+.update-action {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--lina-orange);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  white-space: nowrap;
+}
+
+.update-action:hover {
+  background: var(--lina-yellow);
+  transform: translateY(-1px);
+}
+
+.update-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  color: var(--text-tertiary);
+}
+
+.update-close:hover {
+  background: var(--surface-active);
+  color: var(--text-primary);
 }
 
 /* Section Headers */
@@ -943,6 +1172,27 @@ const openDataset = (dataset) => {
   }
   
   .quick-action {
+    justify-content: center;
+  }
+  
+  .updates-banner {
+    padding: var(--space-4);
+  }
+  
+  .banner-content {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  
+  .update-message {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-3);
+  }
+  
+  .update-action {
+    align-self: stretch;
     justify-content: center;
   }
   
