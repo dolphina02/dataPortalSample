@@ -2,213 +2,163 @@
   <div class="stt-search-view">
     <div class="page-header">
       <div class="header-content">
-        <h1 class="page-title">STT 키워드 검색</h1>
-        <p class="page-subtitle">음성 파일에서 키워드를 추출하여 데이터를 검색하세요</p>
-      </div>
-      <div class="header-actions">
-        <select v-model="selectedLanguage" class="language-select">
-          <option value="ko-KR">한국어</option>
-          <option value="en-US">English</option>
-          <option value="ja-JP">日本語</option>
-        </select>
-      </div>
-    </div>
-
-    <!-- Audio File Upload Section -->
-    <div class="audio-upload-section">
-      <div class="section-header">
-        <h3 class="section-title">음성 파일 업로드</h3>
-        <div class="section-actions">
-          <button class="action-btn" @click="clearAudioFile">
-            <IconSystem name="trash" :size="16" />
+        <div class="header-info">
+          <h1 class="page-title">STT 키워드 검색</h1>
+          <p class="page-subtitle">상담 녹취 내용에서 키워드를 검색하여 관련 상담을 찾아보세요</p>
+        </div>
+        <div class="header-actions">
+          <button class="action-btn" @click="clearAllFilters">
+            <IconSystem name="refresh-cw" :size="16" />
             초기화
           </button>
         </div>
       </div>
-
-      <div class="audio-upload-container">
-        <!-- File Upload Area -->
-        <div 
-          class="file-upload-area" 
-          :class="{ 'drag-over': isDragOver, 'has-file': audioFile }"
-          @drop="handleFileDrop"
-          @dragover.prevent="isDragOver = true"
-          @dragleave="isDragOver = false"
-          @click="triggerFileInput"
-        >
-          <input 
-            ref="fileInput"
-            type="file" 
-            accept="audio/*"
-            @change="handleFileSelect"
-            class="file-input"
-          />
-          
-          <div v-if="!audioFile" class="upload-prompt">
-            <IconSystem name="upload" :size="48" />
-            <h4>음성 파일을 업로드하세요</h4>
-            <p>파일을 드래그하거나 클릭하여 선택하세요</p>
-            <div class="supported-formats">
-              지원 형식: MP3, WAV, M4A, OGG
-            </div>
-          </div>
-          
-          <div v-else class="file-info">
-            <div class="file-details">
-              <IconSystem name="file-audio" :size="32" />
-              <div class="file-meta">
-                <div class="file-name">{{ audioFile.name }}</div>
-                <div class="file-size">{{ formatFileSize(audioFile.size) }}</div>
-                <div class="file-duration" v-if="audioDuration">{{ formatDuration(audioDuration) }}</div>
-              </div>
-            </div>
-            
-            <div class="file-actions">
-              <button class="file-action-btn" @click.stop="playAudio" v-if="!isPlaying">
-                <IconSystem name="play" :size="16" />
-                재생
-              </button>
-              <button class="file-action-btn" @click.stop="pauseAudio" v-else>
-                <IconSystem name="pause" :size="16" />
-                일시정지
-              </button>
-              <button class="file-action-btn primary" @click.stop="processAudio" :disabled="isProcessing">
-                <IconSystem name="zap" :size="16" />
-                {{ isProcessing ? '처리 중...' : 'STT 처리' }}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Audio Player -->
-        <div v-if="audioFile" class="audio-player">
-          <audio 
-            ref="audioElement"
-            :src="audioUrl"
-            @loadedmetadata="updateAudioDuration"
-            @timeupdate="updateProgress"
-            @ended="audioEnded"
-          ></audio>
-          
-          <div class="player-controls">
-            <button class="player-btn" @click="playAudio" v-if="!isPlaying">
-              <IconSystem name="play" :size="20" />
-            </button>
-            <button class="player-btn" @click="pauseAudio" v-else>
-              <IconSystem name="pause" :size="20" />
-            </button>
-            
-            <div class="progress-container">
-              <div class="progress-bar" @click="seekAudio">
-                <div class="progress-fill" :style="{ width: progressPercentage + '%' }"></div>
-              </div>
-              <div class="time-display">
-                <span>{{ formatTime(currentTime) }}</span>
-                <span>{{ formatTime(audioDuration) }}</span>
-              </div>
-            </div>
-            
-            <div class="volume-control">
-              <IconSystem name="volume-2" :size="16" />
-              <input 
-                type="range" 
-                min="0" 
-                max="1" 
-                step="0.1" 
-                v-model="volume"
-                @input="updateVolume"
-                class="volume-slider"
-              />
-            </div>
-          </div>
-        </div>
-
-        <!-- Processing Status -->
-        <div v-if="isProcessing" class="processing-status">
-          <div class="processing-animation">
-            <div class="processing-spinner"></div>
-          </div>
-          <div class="processing-text">
-            <h4>음성을 텍스트로 변환 중...</h4>
-            <p>{{ processingProgress }}% 완료</p>
-          </div>
-        </div>
-
-        <!-- STT Results -->
-        <div v-if="sttResults.length" class="stt-results">
-          <div class="results-header">
-            <h4>음성 인식 결과</h4>
-            <div class="results-confidence">
-              평균 신뢰도: {{ averageConfidence }}%
-            </div>
-          </div>
-          
-          <div class="results-segments">
-            <div 
-              v-for="(segment, index) in sttResults" 
-              :key="index"
-              class="result-segment"
-              @click="seekToSegment(segment.startTime)"
-            >
-              <div class="segment-time">
-                {{ formatTime(segment.startTime) }} - {{ formatTime(segment.endTime) }}
-              </div>
-              <div class="segment-text">{{ segment.text }}</div>
-              <div class="segment-confidence">{{ segment.confidence }}%</div>
-            </div>
-          </div>
-          
-          <div class="results-actions">
-            <button class="results-btn" @click="copyAllTranscripts">
-              <IconSystem name="copy" :size="16" />
-              전체 복사
-            </button>
-            <button class="results-btn primary" @click="extractKeywordsFromSTT">
-              <IconSystem name="search" :size="16" />
-              키워드 추출
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
 
-    <!-- Keyword Analysis -->
-    <div v-if="extractedKeywords.length" class="keywords-section">
+    <!-- Search Filters -->
+    <div class="search-filters-section">
       <div class="section-header">
-        <h3 class="section-title">추출된 키워드</h3>
-        <button class="action-btn" @click="refreshKeywords">
-          <IconSystem name="refresh-cw" :size="16" />
-          재분석
+        <h3 class="section-title">검색 조건</h3>
+        <button class="toggle-btn" @click="showFilters = !showFilters">
+          <IconSystem :name="showFilters ? 'chevron-up' : 'chevron-down'" :size="16" />
         </button>
       </div>
       
-      <div class="keywords-container">
-        <div class="keywords-list">
-          <div 
-            v-for="keyword in extractedKeywords" 
-            :key="keyword.text"
-            class="keyword-item"
-            :class="{ selected: selectedKeywords.includes(keyword.text) }"
-            @click="toggleKeyword(keyword.text)"
-          >
-            <div class="keyword-content">
-              <span class="keyword-text">{{ keyword.text }}</span>
-              <span class="keyword-type">{{ keyword.type }}</span>
+      <Transition name="slide-down">
+        <div v-show="showFilters" class="filters-content">
+          <div class="filters-grid">
+            <!-- Date Range -->
+            <div class="filter-group">
+              <label class="filter-label">상담 일자</label>
+              <div class="date-range">
+                <input 
+                  v-model="searchFilters.startDate"
+                  type="date" 
+                  class="date-input"
+                />
+                <span class="date-separator">~</span>
+                <input 
+                  v-model="searchFilters.endDate"
+                  type="date" 
+                  class="date-input"
+                />
+              </div>
             </div>
-            <div class="keyword-confidence">{{ keyword.confidence }}%</div>
+
+            <!-- Consultant ID -->
+            <div class="filter-group">
+              <label class="filter-label">상담사 번호</label>
+              <input 
+                v-model="searchFilters.consultantId"
+                type="text" 
+                placeholder="상담사 번호 입력"
+                class="filter-input"
+              />
+            </div>
+
+            <!-- Contract Number -->
+            <div class="filter-group">
+              <label class="filter-label">계약 번호</label>
+              <input 
+                v-model="searchFilters.contractNumber"
+                type="text" 
+                placeholder="계약 번호 입력"
+                class="filter-input"
+              />
+            </div>
+
+            <!-- Customer ID -->
+            <div class="filter-group">
+              <label class="filter-label">고객 ID</label>
+              <input 
+                v-model="searchFilters.customerId"
+                type="text" 
+                placeholder="고객 ID 입력"
+                class="filter-input"
+              />
+            </div>
+
+            <!-- Call Type -->
+            <div class="filter-group">
+              <label class="filter-label">상담 유형</label>
+              <select v-model="searchFilters.callType" class="filter-select">
+                <option value="">전체</option>
+                <option value="inbound">인바운드</option>
+                <option value="outbound">아웃바운드</option>
+                <option value="claim">보험금청구</option>
+                <option value="consultation">상담</option>
+                <option value="complaint">불만처리</option>
+              </select>
+            </div>
+
+            <!-- Duration -->
+            <div class="filter-group">
+              <label class="filter-label">통화 시간</label>
+              <div class="duration-range">
+                <input 
+                  v-model="searchFilters.minDuration"
+                  type="number" 
+                  placeholder="최소(분)"
+                  class="duration-input"
+                />
+                <span class="duration-separator">~</span>
+                <input 
+                  v-model="searchFilters.maxDuration"
+                  type="number" 
+                  placeholder="최대(분)"
+                  class="duration-input"
+                />
+              </div>
+            </div>
           </div>
         </div>
+      </Transition>
+    </div>
+
+    <!-- Keyword Search -->
+    <div class="keyword-search-section">
+      <div class="section-header">
+        <h3 class="section-title">키워드 검색</h3>
+        <div class="search-stats" v-if="searchResults.length">
+          <span class="results-count">{{ searchResults.length }}건</span>
+          <span class="search-time">{{ searchTime }}ms</span>
+        </div>
+      </div>
+      
+      <div class="search-container">
+        <div class="search-input-wrapper">
+          <IconSystem name="search" :size="20" />
+          <input 
+            v-model="keywordQuery"
+            type="text" 
+            placeholder="검색할 키워드를 입력하세요 (예: 보험금, 청구, 해지 등)"
+            class="keyword-input"
+            @keydown.enter="performSearch"
+          />
+          <button 
+            class="search-btn"
+            :disabled="!keywordQuery.trim() || isSearching"
+            @click="performSearch"
+          >
+            <IconSystem v-if="isSearching" name="loader" :size="16" class="spinning" />
+            <IconSystem v-else name="search" :size="16" />
+            {{ isSearching ? '검색 중...' : '검색' }}
+          </button>
+        </div>
         
-        <div class="keywords-actions">
-          <button class="keywords-btn" @click="selectAllKeywords">
-            전체 선택
-          </button>
-          <button class="keywords-btn" @click="clearSelectedKeywords">
-            선택 해제
-          </button>
-          <button class="keywords-btn primary" @click="searchWithKeywords">
-            선택된 키워드로 검색
-          </button>
+        <div class="search-options">
+          <label class="search-option">
+            <input type="checkbox" v-model="searchOptions.exactMatch" />
+            <span>정확히 일치</span>
+          </label>
+          <label class="search-option">
+            <input type="checkbox" v-model="searchOptions.caseSensitive" />
+            <span>대소문자 구분</span>
+          </label>
+          <label class="search-option">
+            <input type="checkbox" v-model="searchOptions.includeContext" />
+            <span>문맥 포함</span>
+          </label>
         </div>
       </div>
     </div>
@@ -217,267 +167,361 @@
     <div v-if="searchResults.length" class="results-section">
       <div class="section-header">
         <h3 class="section-title">검색 결과</h3>
-        <div class="results-meta">
-          <span class="results-count">{{ searchResults.length }}개 결과</span>
-          <span class="search-time">{{ searchTime }}ms</span>
-        </div>
-      </div>
-      
-      <div class="results-container">
-        <div class="results-filters">
-          <div class="filter-group">
-            <label class="filter-label">데이터 타입</label>
-            <select v-model="resultFilter.type" class="filter-select">
-              <option value="">전체</option>
-              <option value="table">테이블</option>
-              <option value="view">뷰</option>
-              <option value="report">리포트</option>
-            </select>
-          </div>
-          
-          <div class="filter-group">
-            <label class="filter-label">정렬</label>
-            <select v-model="resultFilter.sort" class="filter-select">
-              <option value="relevance">관련도순</option>
-              <option value="date">날짜순</option>
-              <option value="name">이름순</option>
-            </select>
-          </div>
-        </div>
-        
-        <div class="results-list">
-          <div 
-            v-for="result in filteredResults" 
-            :key="result.id"
-            class="result-item"
-            @click="openResult(result)"
-          >
-            <div class="result-header">
-              <div class="result-icon">
-                <IconSystem :name="getResultIcon(result.type)" :size="24" />
-              </div>
-              <div class="result-meta">
-                <span class="result-type">{{ result.type }}</span>
-                <span class="result-relevance">{{ result.relevance }}% 일치</span>
-              </div>
-            </div>
-            
-            <div class="result-content">
-              <h4 class="result-title">{{ result.title }}</h4>
-              <p class="result-description">{{ result.description }}</p>
-              
-              <div class="result-highlights">
-                <span 
-                  v-for="highlight in result.highlights" 
-                  :key="highlight"
-                  class="highlight-tag"
-                >
-                  {{ highlight }}
-                </span>
-              </div>
-            </div>
-            
-            <div class="result-actions">
-              <button class="result-action-btn" @click.stop="previewResult(result)">
-                <IconSystem name="eye" :size="16" />
-                미리보기
-              </button>
-              <button class="result-action-btn primary" @click.stop="openResult(result)">
-                <IconSystem name="external-link" :size="16" />
-                열기
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Voice Commands Help -->
-    <div class="help-section">
-      <div class="section-header">
-        <h3 class="section-title">음성 명령어 가이드</h3>
-        <button class="toggle-btn" @click="showHelp = !showHelp">
-          <IconSystem :name="showHelp ? 'chevron-up' : 'chevron-down'" :size="16" />
-        </button>
-      </div>
-      
-      <Transition name="slide-down">
-        <div v-show="showHelp" class="help-content">
-          <div class="help-categories">
-            <div class="help-category">
-              <h4>검색 명령어</h4>
-              <ul>
-                <li>"고객 데이터 찾아줘"</li>
-                <li>"매출 관련 테이블 보여줘"</li>
-                <li>"주문 정보 검색해줘"</li>
-                <li>"최근 데이터 분석 결과"</li>
-              </ul>
-            </div>
-            
-            <div class="help-category">
-              <h4>필터 명령어</h4>
-              <ul>
-                <li>"2024년 데이터만"</li>
-                <li>"테이블 타입만 보여줘"</li>
-                <li>"높은 정확도 순으로"</li>
-                <li>"최신 순으로 정렬"</li>
-              </ul>
-            </div>
-            
-            <div class="help-category">
-              <h4>분석 명령어</h4>
-              <ul>
-                <li>"트렌드 분석해줘"</li>
-                <li>"상관관계 찾아줘"</li>
-                <li>"이상치 탐지해줘"</li>
-                <li>"요약 통계 보여줘"</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </Transition>
-    </div>
-
-    <!-- Search History -->
-    <div class="history-section">
-      <div class="section-header">
-        <h3 class="section-title">검색 히스토리</h3>
-        <button class="action-btn" @click="clearHistory">
-          <IconSystem name="trash" :size="16" />
-          전체 삭제
-        </button>
-      </div>
-      
-      <div class="history-list">
-        <div 
-          v-for="item in searchHistory" 
-          :key="item.id"
-          class="history-item"
-          @click="loadFromHistory(item)"
-        >
-          <div class="history-content">
-            <div class="history-query">
-              <IconSystem name="mic" :size="16" />
-              <span>{{ item.transcript }}</span>
-            </div>
-            <div class="history-keywords">
-              <span 
-                v-for="keyword in item.keywords.slice(0, 3)" 
-                :key="keyword"
-                class="history-keyword"
-              >
-                {{ keyword }}
-              </span>
-              <span v-if="item.keywords.length > 3" class="keyword-more">
-                +{{ item.keywords.length - 3 }}
-              </span>
-            </div>
-            <div class="history-meta">
-              <span class="history-time">{{ formatHistoryTime(item.timestamp) }}</span>
-              <span class="history-results">{{ item.resultCount }}개 결과</span>
-            </div>
-          </div>
-          
-          <button class="history-delete" @click.stop="deleteHistoryItem(item.id)">
-            <IconSystem name="trash" :size="14" />
+        <div class="results-actions">
+          <select v-model="sortBy" class="sort-select">
+            <option value="relevance">관련도순</option>
+            <option value="date">날짜순</option>
+            <option value="duration">통화시간순</option>
+            <option value="consultant">상담사순</option>
+          </select>
+          <button class="action-btn" @click="exportResults">
+            <IconSystem name="download" :size="16" />
+            내보내기
           </button>
         </div>
       </div>
+      
+      <div class="results-list">
+        <div 
+          v-for="result in sortedResults" 
+          :key="result.id"
+          class="result-item"
+          @click="selectResult(result)"
+          :class="{ selected: selectedResult?.id === result.id }"
+        >
+          <div class="result-header">
+            <div class="result-meta">
+              <div class="meta-item">
+                <IconSystem name="calendar" :size="14" />
+                <span>{{ formatDate(result.callDate) }}</span>
+              </div>
+              <div class="meta-item">
+                <IconSystem name="user" :size="14" />
+                <span>상담사 {{ result.consultantId }}</span>
+              </div>
+              <div class="meta-item">
+                <IconSystem name="clock" :size="14" />
+                <span>{{ formatDuration(result.duration) }}</span>
+              </div>
+              <div class="meta-item">
+                <IconSystem name="phone" :size="14" />
+                <span>{{ result.callType }}</span>
+              </div>
+            </div>
+            <div class="result-score">
+              <span class="score-label">일치도</span>
+              <span class="score-value">{{ result.relevanceScore }}%</span>
+            </div>
+          </div>
+          
+          <div class="result-content">
+            <div class="result-info">
+              <div class="info-item">
+                <span class="info-label">계약번호:</span>
+                <span class="info-value">{{ result.contractNumber || 'N/A' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">고객ID:</span>
+                <span class="info-value">{{ result.customerId || 'N/A' }}</span>
+              </div>
+            </div>
+            
+            <div class="result-highlights">
+              <div class="highlight-title">매칭된 내용:</div>
+              <div class="highlight-text" v-html="result.highlightedText"></div>
+            </div>
+          </div>
+          
+          <div class="result-actions">
+            <button class="result-action-btn" @click.stop="playRecording(result)">
+              <IconSystem name="play" :size="16" />
+              재생
+            </button>
+            <button class="result-action-btn" @click.stop="viewFullTranscript(result)">
+              <IconSystem name="file-text" :size="16" />
+              전체 내용
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Audio Player Modal -->
+    <div v-if="showAudioPlayer" class="modal-overlay" @click="closeAudioPlayer">
+      <div class="modal-content audio-modal" @click.stop>
+        <div class="modal-header">
+          <h3 class="modal-title">녹취 재생</h3>
+          <button class="modal-close" @click="closeAudioPlayer">
+            <IconSystem name="x" :size="20" />
+          </button>
+        </div>
+        
+        <div class="modal-body">
+          <div class="audio-info">
+            <div class="audio-meta">
+              <div class="meta-row">
+                <span class="meta-label">상담일시:</span>
+                <span class="meta-value">{{ formatDateTime(selectedResult?.callDate) }}</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">상담사:</span>
+                <span class="meta-value">{{ selectedResult?.consultantId }}</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">통화시간:</span>
+                <span class="meta-value">{{ formatDuration(selectedResult?.duration) }}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="audio-player">
+            <audio 
+              ref="audioElement"
+              :src="selectedResult?.audioUrl"
+              @loadedmetadata="updateAudioDuration"
+              @timeupdate="updateProgress"
+              @ended="audioEnded"
+              controls
+            ></audio>
+            
+            <div class="player-controls">
+              <button class="player-btn" @click="togglePlay">
+                <IconSystem :name="isPlaying ? 'pause' : 'play'" :size="20" />
+              </button>
+              
+              <div class="progress-container">
+                <div class="progress-bar" @click="seekAudio">
+                  <div class="progress-fill" :style="{ width: progressPercentage + '%' }"></div>
+                </div>
+                <div class="time-display">
+                  <span>{{ formatTime(currentTime) }}</span>
+                  <span>{{ formatTime(audioDuration) }}</span>
+                </div>
+              </div>
+              
+              <div class="volume-control">
+                <IconSystem name="volume-2" :size="16" />
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="1" 
+                  step="0.1" 
+                  v-model="volume"
+                  @input="updateVolume"
+                  class="volume-slider"
+                />
+              </div>
+            </div>
+          </div>
+          
+          <div class="transcript-section">
+            <h4>녹취 내용</h4>
+            <div class="transcript-content">
+              <div 
+                v-for="segment in selectedResult?.transcript" 
+                :key="segment.id"
+                class="transcript-segment"
+                :class="{ active: currentSegment === segment.id }"
+                @click="seekToSegment(segment.startTime)"
+              >
+                <div class="segment-time">{{ formatTime(segment.startTime) }}</div>
+                <div class="segment-speaker">{{ segment.speaker }}</div>
+                <div class="segment-text">{{ segment.text }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Full Transcript Modal -->
+    <div v-if="showTranscriptModal" class="modal-overlay" @click="closeTranscriptModal">
+      <div class="modal-content transcript-modal" @click.stop>
+        <div class="modal-header">
+          <h3 class="modal-title">전체 녹취 내용</h3>
+          <button class="modal-close" @click="closeTranscriptModal">
+            <IconSystem name="x" :size="20" />
+          </button>
+        </div>
+        
+        <div class="modal-body">
+          <div class="transcript-full">
+            <div 
+              v-for="segment in selectedResult?.transcript" 
+              :key="segment.id"
+              class="transcript-line"
+            >
+              <div class="line-header">
+                <span class="line-time">{{ formatTime(segment.startTime) }}</span>
+                <span class="line-speaker">{{ segment.speaker }}</span>
+              </div>
+              <div class="line-text">{{ segment.text }}</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="modal-footer">
+          <button class="btn-secondary" @click="closeTranscriptModal">닫기</button>
+          <button class="btn-primary" @click="copyTranscript">복사</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div v-if="!searchResults.length && !isSearching && hasSearched" class="empty-state">
+      <IconSystem name="search" :size="48" />
+      <h3>검색 결과가 없습니다</h3>
+      <p>다른 키워드로 검색해보시거나 검색 조건을 조정해보세요</p>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed } from 'vue'
 import IconSystem from './IconSystem.vue'
 
 // Reactive state
-const audioFile = ref(null)
-const audioUrl = ref('')
-const isPlaying = ref(false)
-const isProcessing = ref(false)
-const processingProgress = ref(0)
-const audioDuration = ref(0)
-const currentTime = ref(0)
-const volume = ref(1)
-const isDragOver = ref(false)
-const sttResults = ref([])
-const selectedLanguage = ref('ko-KR')
-const extractedKeywords = ref([])
-const selectedKeywords = ref([])
+const showFilters = ref(true)
+const keywordQuery = ref('')
+const isSearching = ref(false)
+const hasSearched = ref(false)
 const searchResults = ref([])
+const selectedResult = ref(null)
+const showAudioPlayer = ref(false)
+const showTranscriptModal = ref(false)
 const searchTime = ref(0)
-const showHelp = ref(false)
-const searchHistory = ref([])
+const sortBy = ref('relevance')
 
-const resultFilter = ref({
-  type: '',
-  sort: 'relevance'
+// Audio player state
+const isPlaying = ref(false)
+const currentTime = ref(0)
+const audioDuration = ref(0)
+const volume = ref(1)
+const currentSegment = ref(null)
+const audioElement = ref(null)
+
+// Search filters
+const searchFilters = ref({
+  startDate: '',
+  endDate: '',
+  consultantId: '',
+  contractNumber: '',
+  customerId: '',
+  callType: '',
+  minDuration: '',
+  maxDuration: ''
 })
 
-// Audio element reference
-const audioElement = ref(null)
-const fileInput = ref(null)
+// Search options
+const searchOptions = ref({
+  exactMatch: false,
+  caseSensitive: false,
+  includeContext: true
+})
 
 // Sample data
-const sampleKeywords = [
-  { text: '고객', type: '엔티티', confidence: 95 },
-  { text: '매출', type: '지표', confidence: 92 },
-  { text: '2024년', type: '시간', confidence: 88 },
-  { text: '분석', type: '액션', confidence: 85 },
-  { text: '데이터', type: '엔티티', confidence: 90 }
-]
-
 const sampleResults = [
   {
     id: 1,
-    title: '고객 매출 분석 테이블',
-    description: '2024년 고객별 매출 데이터 및 트렌드 분석 결과',
-    type: 'table',
-    relevance: 95,
-    highlights: ['고객', '매출', '2024년']
+    callDate: '2024-10-01T09:30:00',
+    consultantId: 'CS001',
+    contractNumber: 'INS-2024-001234',
+    customerId: 'CUST-789012',
+    callType: '보험금청구',
+    duration: 1245, // seconds
+    relevanceScore: 95,
+    highlightedText: '고객님의 <mark>보험금 청구</mark> 건에 대해 안내드리겠습니다. <mark>청구</mark> 서류를 확인한 결과...',
+    audioUrl: '/sample-audio-1.mp3',
+    transcript: [
+      {
+        id: 1,
+        startTime: 0,
+        endTime: 5.2,
+        speaker: '상담사',
+        text: '안녕하세요. 고객님의 보험금 청구 건에 대해 안내드리겠습니다.'
+      },
+      {
+        id: 2,
+        startTime: 5.2,
+        endTime: 12.8,
+        speaker: '고객',
+        text: '네, 지난주에 청구 서류를 제출했는데 처리 현황이 궁금합니다.'
+      },
+      {
+        id: 3,
+        startTime: 12.8,
+        endTime: 20.5,
+        speaker: '상담사',
+        text: '청구 서류를 확인한 결과 추가 서류가 필요한 상황입니다.'
+      }
+    ]
   },
   {
     id: 2,
-    title: '월별 매출 리포트',
-    description: '월별 매출 현황 및 전년 대비 증감률 분석',
-    type: 'report',
-    relevance: 88,
-    highlights: ['매출', '분석', '리포트']
+    callDate: '2024-09-28T14:15:00',
+    consultantId: 'CS002',
+    contractNumber: 'INS-2024-001189',
+    customerId: 'CUST-456789',
+    callType: '상담',
+    duration: 892,
+    relevanceScore: 88,
+    highlightedText: '계약 <mark>해지</mark>에 대한 문의를 주셨는데, <mark>해지</mark> 시 발생하는 수수료에 대해 설명드리겠습니다.',
+    audioUrl: '/sample-audio-2.mp3',
+    transcript: [
+      {
+        id: 1,
+        startTime: 0,
+        endTime: 4.8,
+        speaker: '상담사',
+        text: '안녕하세요. 무엇을 도와드릴까요?'
+      },
+      {
+        id: 2,
+        startTime: 4.8,
+        endTime: 11.2,
+        speaker: '고객',
+        text: '보험 계약 해지를 생각하고 있는데 절차가 어떻게 되나요?'
+      }
+    ]
   },
   {
     id: 3,
-    title: '고객 세그먼트 뷰',
-    description: '고객 행동 패턴 기반 세그먼트 분류 뷰',
-    type: 'view',
-    relevance: 82,
-    highlights: ['고객', '분석', '세그먼트']
+    callDate: '2024-09-25T11:45:00',
+    consultantId: 'CS003',
+    contractNumber: null,
+    customerId: 'CUST-123456',
+    callType: '불만처리',
+    duration: 1567,
+    relevanceScore: 82,
+    highlightedText: '고객님의 <mark>불만</mark> 사항에 대해 진심으로 사과드립니다. <mark>처리</mark> 과정에서 문제가 있었던 것 같습니다.',
+    audioUrl: '/sample-audio-3.mp3',
+    transcript: [
+      {
+        id: 1,
+        startTime: 0,
+        endTime: 6.5,
+        speaker: '상담사',
+        text: '고객님의 불만 사항에 대해 진심으로 사과드립니다.'
+      }
+    ]
   }
 ]
 
 // Computed
-const filteredResults = computed(() => {
-  let filtered = searchResults.value
-
-  if (resultFilter.value.type) {
-    filtered = filtered.filter(result => result.type === resultFilter.value.type)
+const sortedResults = computed(() => {
+  const results = [...searchResults.value]
+  
+  switch (sortBy.value) {
+    case 'date':
+      return results.sort((a, b) => new Date(b.callDate) - new Date(a.callDate))
+    case 'duration':
+      return results.sort((a, b) => b.duration - a.duration)
+    case 'consultant':
+      return results.sort((a, b) => a.consultantId.localeCompare(b.consultantId))
+    case 'relevance':
+    default:
+      return results.sort((a, b) => b.relevanceScore - a.relevanceScore)
   }
-
-  // Sort results
-  filtered.sort((a, b) => {
-    switch (resultFilter.value.sort) {
-      case 'relevance':
-        return b.relevance - a.relevance
-      case 'date':
-        return new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0)
-      case 'name':
-        return a.title.localeCompare(b.title)
-      default:
-        return 0
-    }
-  })
-
-  return filtered
 })
 
 const progressPercentage = computed(() => {
@@ -485,67 +529,123 @@ const progressPercentage = computed(() => {
   return (currentTime.value / audioDuration.value) * 100
 })
 
-const averageConfidence = computed(() => {
-  if (!sttResults.value.length) return 0
-  const total = sttResults.value.reduce((sum, result) => sum + result.confidence, 0)
-  return Math.round(total / sttResults.value.length)
-})
-
 // Methods
-const triggerFileInput = () => {
-  fileInput.value?.click()
-}
-
-const handleFileSelect = (event) => {
-  const file = event.target.files[0]
-  if (file) {
-    setAudioFile(file)
-  }
-}
-
-const handleFileDrop = (event) => {
-  event.preventDefault()
-  isDragOver.value = false
+const performSearch = async () => {
+  if (!keywordQuery.value.trim()) return
   
-  const file = event.dataTransfer.files[0]
-  if (file && file.type.startsWith('audio/')) {
-    setAudioFile(file)
+  isSearching.value = true
+  hasSearched.value = true
+  const startTime = Date.now()
+  
+  // Simulate Elasticsearch search
+  setTimeout(() => {
+    // Filter sample results based on keyword and filters
+    let results = sampleResults.filter(result => {
+      // Keyword matching - search in both highlighted text and transcript
+      const cleanText = result.highlightedText.replace(/<[^>]*>/g, '').toLowerCase()
+      const transcriptText = result.transcript.map(t => t.text).join(' ').toLowerCase()
+      const keywordMatch = cleanText.includes(keywordQuery.value.toLowerCase()) || 
+                          transcriptText.includes(keywordQuery.value.toLowerCase())
+      
+      // Apply filters
+      let passesFilters = true
+      
+      if (searchFilters.value.startDate) {
+        passesFilters = passesFilters && new Date(result.callDate) >= new Date(searchFilters.value.startDate)
+      }
+      
+      if (searchFilters.value.endDate) {
+        passesFilters = passesFilters && new Date(result.callDate) <= new Date(searchFilters.value.endDate)
+      }
+      
+      if (searchFilters.value.consultantId) {
+        passesFilters = passesFilters && result.consultantId.includes(searchFilters.value.consultantId)
+      }
+      
+      if (searchFilters.value.contractNumber) {
+        passesFilters = passesFilters && result.contractNumber?.includes(searchFilters.value.contractNumber)
+      }
+      
+      if (searchFilters.value.customerId) {
+        passesFilters = passesFilters && result.customerId.includes(searchFilters.value.customerId)
+      }
+      
+      if (searchFilters.value.callType) {
+        passesFilters = passesFilters && result.callType === searchFilters.value.callType
+      }
+      
+      return keywordMatch && passesFilters
+    })
+    
+    console.log('Search keyword:', keywordQuery.value)
+    console.log('Filtered results:', results)
+    console.log('Sample data check:', sampleResults.map(r => ({
+      id: r.id,
+      cleanText: r.highlightedText.replace(/<[^>]*>/g, ''),
+      transcriptText: r.transcript.map(t => t.text).join(' ')
+    })))
+    
+    searchResults.value = results
+    searchTime.value = Date.now() - startTime
+    isSearching.value = false
+  }, 1000)
+}
+
+const clearAllFilters = () => {
+  keywordQuery.value = ''
+  searchFilters.value = {
+    startDate: '',
+    endDate: '',
+    consultantId: '',
+    contractNumber: '',
+    customerId: '',
+    callType: '',
+    minDuration: '',
+    maxDuration: ''
   }
-}
-
-const setAudioFile = (file) => {
-  audioFile.value = file
-  audioUrl.value = URL.createObjectURL(file)
-  sttResults.value = []
-  extractedKeywords.value = []
-  selectedKeywords.value = []
-}
-
-const clearAudioFile = () => {
-  if (audioUrl.value) {
-    URL.revokeObjectURL(audioUrl.value)
+  searchOptions.value = {
+    exactMatch: false,
+    caseSensitive: false,
+    includeContext: true
   }
-  audioFile.value = null
-  audioUrl.value = ''
-  sttResults.value = []
-  extractedKeywords.value = []
-  selectedKeywords.value = []
-  isPlaying.value = false
-  currentTime.value = 0
-  audioDuration.value = 0
+  searchResults.value = []
+  hasSearched.value = false
 }
 
-const playAudio = () => {
-  if (audioElement.value) {
-    audioElement.value.play()
-    isPlaying.value = true
-  }
+const selectResult = (result) => {
+  selectedResult.value = result
 }
 
-const pauseAudio = () => {
-  if (audioElement.value) {
-    audioElement.value.pause()
+const playRecording = (result) => {
+  selectedResult.value = result
+  showAudioPlayer.value = true
+}
+
+const viewFullTranscript = (result) => {
+  selectedResult.value = result
+  showTranscriptModal.value = true
+}
+
+const closeAudioPlayer = () => {
+  showAudioPlayer.value = false
+  if (isPlaying.value) {
+    audioElement.value?.pause()
     isPlaying.value = false
+  }
+}
+
+const closeTranscriptModal = () => {
+  showTranscriptModal.value = false
+}
+
+const togglePlay = () => {
+  if (audioElement.value) {
+    if (isPlaying.value) {
+      audioElement.value.pause()
+    } else {
+      audioElement.value.play()
+    }
+    isPlaying.value = !isPlaying.value
   }
 }
 
@@ -558,6 +658,12 @@ const updateAudioDuration = () => {
 const updateProgress = () => {
   if (audioElement.value) {
     currentTime.value = audioElement.value.currentTime
+    
+    // Update current segment
+    const current = selectedResult.value?.transcript.find(segment => 
+      currentTime.value >= segment.startTime && currentTime.value <= segment.endTime
+    )
+    currentSegment.value = current?.id || null
   }
 }
 
@@ -581,7 +687,7 @@ const seekToSegment = (time) => {
     audioElement.value.currentTime = time
     currentTime.value = time
     if (!isPlaying.value) {
-      playAudio()
+      togglePlay()
     }
   }
 }
@@ -592,73 +698,47 @@ const updateVolume = () => {
   }
 }
 
-const processAudio = async () => {
-  if (!audioFile.value) return
-  
-  isProcessing.value = true
-  processingProgress.value = 0
-  
-  // Simulate STT processing
-  const interval = setInterval(() => {
-    processingProgress.value += 10
-    if (processingProgress.value >= 100) {
-      clearInterval(interval)
-      
-      // Mock STT results
-      sttResults.value = [
-        {
-          startTime: 0,
-          endTime: 3.5,
-          text: '안녕하세요 고객 데이터 분석 결과를 확인하고 싶습니다',
-          confidence: 95
-        },
-        {
-          startTime: 3.5,
-          endTime: 7.2,
-          text: '2024년 매출 현황과 트렌드를 보여주세요',
-          confidence: 92
-        },
-        {
-          startTime: 7.2,
-          endTime: 10.8,
-          text: '특히 보험 상품별 판매 실적이 궁금합니다',
-          confidence: 88
-        }
-      ]
-      
-      isProcessing.value = false
-      extractKeywordsFromSTT()
-    }
-  }, 200)
+const exportResults = () => {
+  // Export search results to CSV or Excel
+  console.log('Exporting results...')
 }
 
-const extractKeywordsFromSTT = () => {
-  const allText = sttResults.value.map(r => r.text).join(' ')
-  extractKeywords(allText)
-}
-
-const copyAllTranscripts = async () => {
-  const allText = sttResults.value.map(r => r.text).join('\n')
+const copyTranscript = async () => {
+  const fullText = selectedResult.value?.transcript
+    .map(segment => `[${formatTime(segment.startTime)}] ${segment.speaker}: ${segment.text}`)
+    .join('\n')
+  
   try {
-    await navigator.clipboard.writeText(allText)
+    await navigator.clipboard.writeText(fullText)
     // Show toast notification
   } catch (err) {
-    console.error('Failed to copy transcripts:', err)
+    console.error('Failed to copy transcript:', err)
   }
 }
 
-const formatFileSize = (bytes) => {
-  if (bytes === 0) return '0 Bytes'
-  const k = 1024
-  const sizes = ['Bytes', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+// Utility functions
+const formatDate = (dateString) => {
+  return new Intl.DateTimeFormat('ko-KR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(new Date(dateString))
+}
+
+const formatDateTime = (dateString) => {
+  return new Intl.DateTimeFormat('ko-KR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(new Date(dateString))
 }
 
 const formatDuration = (seconds) => {
   const mins = Math.floor(seconds / 60)
-  const secs = Math.floor(seconds % 60)
-  return `${mins}:${secs.toString().padStart(2, '0')}`
+  const secs = seconds % 60
+  return `${mins}분 ${secs}초`
 }
 
 const formatTime = (seconds) => {
@@ -667,143 +747,14 @@ const formatTime = (seconds) => {
   const secs = Math.floor(seconds % 60)
   return `${mins}:${secs.toString().padStart(2, '0')}`
 }
-
-const extractKeywords = (text) => {
-  // Simulate keyword extraction
-  setTimeout(() => {
-    extractedKeywords.value = sampleKeywords.filter(() => Math.random() > 0.3)
-  }, 500)
-}
-
-const toggleKeyword = (keyword) => {
-  const index = selectedKeywords.value.indexOf(keyword)
-  if (index > -1) {
-    selectedKeywords.value.splice(index, 1)
-  } else {
-    selectedKeywords.value.push(keyword)
-  }
-}
-
-const selectAllKeywords = () => {
-  selectedKeywords.value = extractedKeywords.value.map(k => k.text)
-}
-
-const clearSelectedKeywords = () => {
-  selectedKeywords.value = []
-}
-
-const searchWithTranscript = () => {
-  const allText = sttResults.value.map(r => r.text).join(' ')
-  performSearch(allText, extractedKeywords.value.map(k => k.text))
-}
-
-const searchWithKeywords = () => {
-  const allText = sttResults.value.map(r => r.text).join(' ')
-  performSearch(allText, selectedKeywords.value)
-}
-
-const performSearch = (query, keywords) => {
-  const startTime = Date.now()
-  
-  // Simulate search
-  setTimeout(() => {
-    searchResults.value = sampleResults
-    searchTime.value = Date.now() - startTime
-    
-    // Add to history
-    searchHistory.value.unshift({
-      id: Date.now(),
-      transcript: query,
-      keywords: keywords,
-      resultCount: sampleResults.length,
-      timestamp: new Date()
-    })
-    
-    // Keep only last 10 items
-    if (searchHistory.value.length > 10) {
-      searchHistory.value = searchHistory.value.slice(0, 10)
-    }
-  }, 800)
-}
-
-const refreshKeywords = () => {
-  if (sttResults.value.length) {
-    const allText = sttResults.value.map(r => r.text).join(' ')
-    extractKeywords(allText)
-  }
-}
-
-const getResultIcon = (type) => {
-  const icons = {
-    table: 'table',
-    view: 'eye',
-    report: 'file-text'
-  }
-  return icons[type] || 'database'
-}
-
-const previewResult = (result) => {
-  console.log('Preview result:', result.title)
-}
-
-const openResult = (result) => {
-  console.log('Open result:', result.title)
-}
-
-const loadFromHistory = (item) => {
-  // Create mock STT results from history
-  sttResults.value = [
-    {
-      startTime: 0,
-      endTime: 5,
-      text: item.transcript,
-      confidence: 90
-    }
-  ]
-  selectedKeywords.value = [...item.keywords]
-  extractedKeywords.value = sampleKeywords.filter(k => item.keywords.includes(k.text))
-}
-
-const deleteHistoryItem = (id) => {
-  const index = searchHistory.value.findIndex(item => item.id === id)
-  if (index > -1) {
-    searchHistory.value.splice(index, 1)
-  }
-}
-
-const clearHistory = () => {
-  searchHistory.value = []
-}
-
-const formatHistoryTime = (timestamp) => {
-  return new Intl.DateTimeFormat('ko-KR', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  }).format(timestamp)
-}
-
-// Lifecycle
-onMounted(() => {
-  // Initialize audio context if needed
-})
-
-onUnmounted(() => {
-  // Clean up audio URL
-  if (audioUrl.value) {
-    URL.revokeObjectURL(audioUrl.value)
-  }
-})
 </script>
 
 <style scoped>
 .stt-search-view {
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
-  max-width: 1200px;
-  margin: 0 auto;
+  padding: var(--space-4);
+  gap: var(--space-4);
 }
 
 .page-header {
@@ -817,39 +768,29 @@ onUnmounted(() => {
   flex: 1;
 }
 
-.page-title {
-  font-size: var(--fs-2xl);
-  font-weight: var(--fw-bold);
-  color: var(--text-primary);
-  margin: 0 0 var(--space-2) 0;
-}
-
-.page-subtitle {
-  font-size: var(--fs-lg);
-  color: var(--text-secondary);
-  margin: 0;
-}
-
-.header-actions {
+.action-btn {
   display: flex;
-  gap: var(--space-3);
-}
-
-.language-select {
+  align-items: center;
+  gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--border-primary);
-  border-radius: var(--radius-md);
   background: var(--surface);
+  border-radius: var(--radius-md);
   font-size: var(--fs-sm);
   cursor: pointer;
+  transition: var(--transition-fast);
+  color: var(--text-secondary);
+}
+
+.action-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
 }
 
 /* Section Styles */
-.audio-upload-section,
-.keywords-section,
-.results-section,
-.help-section,
-.history-section {
+.search-filters-section,
+.keyword-search-section,
+.results-section {
   background: var(--surface);
   border: 1px solid var(--border-primary);
   border-radius: var(--radius-lg);
@@ -872,42 +813,6 @@ onUnmounted(() => {
   margin: 0;
 }
 
-.section-actions {
-  display: flex;
-  gap: var(--space-2);
-}
-
-.action-btn {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border-primary);
-  background: var(--surface);
-  border-radius: var(--radius-md);
-  font-size: var(--fs-sm);
-  cursor: pointer;
-  transition: var(--transition-fast);
-  color: var(--text-secondary);
-}
-
-.action-btn:hover {
-  background: var(--surface-hover);
-  color: var(--text-primary);
-}
-
-.action-btn.active {
-  background: var(--error);
-  color: white;
-  border-color: var(--error);
-}
-
-.action-btn.primary {
-  background: var(--lina-orange);
-  color: white;
-  border-color: var(--lina-orange);
-}
-
 .toggle-btn {
   display: flex;
   align-items: center;
@@ -927,96 +832,313 @@ onUnmounted(() => {
   color: var(--text-primary);
 }
 
-/* Audio Upload */
-.audio-upload-container {
+/* Search Filters */
+.filters-content {
   padding: var(--space-5);
 }
 
-.file-upload-area {
-  border: 2px dashed var(--border-primary);
-  border-radius: var(--radius-lg);
-  padding: var(--space-8);
-  text-align: center;
-  cursor: pointer;
-  transition: var(--transition-fast);
-  background: var(--surface-hover);
-  position: relative;
+.filters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--space-4);
 }
 
-.file-upload-area:hover,
-.file-upload-area.drag-over {
-  border-color: var(--lina-orange);
-  background: color-mix(in srgb, var(--lina-orange) 5%, transparent);
-}
-
-.file-upload-area.has-file {
-  border-style: solid;
-  border-color: var(--success);
-  background: color-mix(in srgb, var(--success) 5%, transparent);
-}
-
-.file-input {
-  display: none;
-}
-
-.upload-prompt {
+.filter-group {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: var(--space-4);
-  color: var(--text-secondary);
+  gap: var(--space-2);
 }
 
-.upload-prompt h4 {
-  margin: 0;
-  color: var(--text-primary);
-}
-
-.supported-formats {
+.filter-label {
   font-size: var(--fs-sm);
-  color: var(--text-tertiary);
-  background: var(--surface);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-md);
-}
-
-.file-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--space-4);
-}
-
-.file-details {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  flex: 1;
-}
-
-.file-meta {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.file-name {
   font-weight: var(--fw-semibold);
   color: var(--text-primary);
 }
 
-.file-size,
-.file-duration {
+.filter-input,
+.filter-select,
+.date-input,
+.duration-input {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  font-size: var(--fs-sm);
+  background: var(--surface);
+  color: var(--text-primary);
+}
+
+.date-input {
+  width: 130px;
+  font-size: var(--fs-xs);
+  padding: var(--space-1) var(--space-2);
+}
+
+.date-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+}
+
+.date-input::-webkit-datetime-edit-text {
+  color: transparent;
+}
+
+.date-input::-webkit-datetime-edit-month-field,
+.date-input::-webkit-datetime-edit-day-field,
+.date-input::-webkit-datetime-edit-year-field {
+  color: var(--text-primary);
+}
+
+.date-input:focus::-webkit-datetime-edit-text {
+  color: var(--text-secondary);
+}
+
+.filter-input:focus,
+.filter-select:focus,
+.date-input:focus,
+.duration-input:focus {
+  outline: none;
+  border-color: var(--lina-orange);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lina-orange) 20%, transparent);
+}
+
+.date-range,
+.duration-range {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.date-separator,
+.duration-separator {
+  color: var(--text-secondary);
+}
+
+.duration-input {
+  flex: 1;
+}
+
+/* Keyword Search */
+.search-container {
+  padding: var(--space-5);
+}
+
+.search-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  margin-bottom: var(--space-4);
+}
+
+.search-input-wrapper:focus-within {
+  border-color: var(--lina-orange);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lina-orange) 20%, transparent);
+}
+
+.keyword-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: var(--fs-base);
+  color: var(--text-primary);
+}
+
+.search-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: var(--lina-yellow);
+  color: var(--gray-800);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.search-btn:hover:not(:disabled) {
+  background: var(--lina-yellow-light);
+  color: var(--gray-800);
+}
+
+.search-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.search-options {
+  display: flex;
+  gap: var(--space-4);
+}
+
+.search-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.search-stats {
+  display: flex;
+  gap: var(--space-3);
   font-size: var(--fs-sm);
   color: var(--text-secondary);
 }
 
-.file-actions {
+.results-count {
+  color: var(--text-primary);
+  font-weight: var(--fw-semibold);
+}
+
+.results-actions {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.sort-select {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+
+/* Results */
+.results-list {
+  padding: var(--space-5);
+}
+
+.result-item {
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  background: var(--surface);
+}
+
+.result-item:hover {
+  border-color: var(--lina-orange);
+  box-shadow: var(--shadow-md);
+}
+
+.result-item.selected {
+  border-color: var(--lina-orange);
+  background: color-mix(in srgb, var(--lina-orange) 5%, transparent);
+}
+
+.result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-3);
+}
+
+.result-meta {
+  display: flex;
+  gap: var(--space-4);
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+
+.result-score {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.score-label {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+
+.score-value {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--lina-orange);
+}
+
+.result-content {
+  margin-bottom: var(--space-3);
+}
+
+.result-info {
+  display: flex;
+  gap: var(--space-4);
+  margin-bottom: var(--space-3);
+}
+
+.info-item {
+  display: flex;
+  gap: var(--space-2);
+  font-size: var(--fs-sm);
+}
+
+.info-label {
+  color: var(--text-secondary);
+}
+
+.info-value {
+  color: var(--text-primary);
+  font-weight: var(--fw-medium);
+}
+
+.result-highlights {
+  background: var(--surface-hover);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+}
+
+.highlight-title {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+  margin-bottom: var(--space-2);
+}
+
+.highlight-text {
+  line-height: var(--lh-relaxed);
+  color: var(--text-secondary);
+}
+
+.highlight-text mark {
+  background: var(--lina-yellow);
+  color: var(--text-primary);
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+}
+
+.result-actions {
   display: flex;
   gap: var(--space-2);
 }
 
-.file-action-btn {
+.result-action-btn {
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -1030,35 +1152,163 @@ onUnmounted(() => {
   color: var(--text-secondary);
 }
 
-.file-action-btn:hover:not(:disabled) {
-  background: var(--surface-hover);
-  color: var(--text-primary);
-}
-
-.file-action-btn.primary {
+.result-action-btn:hover {
   background: var(--lina-orange);
   color: white;
   border-color: var(--lina-orange);
 }
 
-.file-action-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: var(--space-4);
+}
+
+.modal-content {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  max-width: 800px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.audio-modal {
+  max-width: 900px;
+}
+
+.transcript-modal {
+  max-width: 700px;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-6);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.modal-title {
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.modal-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: var(--surface-hover);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  color: var(--text-secondary);
+}
+
+.modal-close:hover {
+  background: var(--surface-active);
+  color: var(--text-primary);
+}
+
+.modal-body {
+  padding: var(--space-6);
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  border-top: 1px solid var(--border-primary);
+}
+
+.btn-primary,
+.btn-secondary {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  border: 1px solid;
+}
+
+.btn-primary {
+  background: var(--lina-orange);
+  color: white;
+  border-color: var(--lina-orange);
+}
+
+.btn-primary:hover {
+  background: var(--lina-yellow);
+  border-color: var(--lina-yellow);
+}
+
+.btn-secondary {
+  background: var(--surface);
+  color: var(--text-secondary);
+  border-color: var(--border-primary);
+}
+
+.btn-secondary:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
 }
 
 /* Audio Player */
+.audio-info {
+  margin-bottom: var(--space-4);
+}
+
+.audio-meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--surface-hover);
+  border-radius: var(--radius-md);
+}
+
+.meta-row {
+  display: flex;
+  gap: var(--space-2);
+  font-size: var(--fs-sm);
+}
+
+.meta-label {
+  color: var(--text-secondary);
+  min-width: 80px;
+}
+
+.meta-value {
+  color: var(--text-primary);
+  font-weight: var(--fw-medium);
+}
+
 .audio-player {
-  margin-top: var(--space-5);
-  padding: var(--space-4);
-  background: var(--surface);
-  border: 1px solid var(--border-primary);
-  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-4);
 }
 
 .player-controls {
   display: flex;
   align-items: center;
   gap: var(--space-4);
+  margin-top: var(--space-3);
 }
 
 .player-btn {
@@ -1120,532 +1370,115 @@ onUnmounted(() => {
   width: 80px;
 }
 
-/* Processing Status */
-.processing-status {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-6);
-  background: var(--surface);
-  border: 1px solid var(--border-primary);
-  border-radius: var(--radius-lg);
-  margin-top: var(--space-5);
-}
-
-.processing-animation {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.processing-spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid var(--surface-hover);
-  border-top: 3px solid var(--lina-orange);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-.processing-text h4 {
-  margin: 0 0 var(--space-1) 0;
-  color: var(--text-primary);
-}
-
-.processing-text p {
-  margin: 0;
-  color: var(--text-secondary);
-}
-
-/* STT Results */
-.stt-results {
-  margin-top: var(--space-5);
-  background: var(--surface);
-  border: 1px solid var(--border-primary);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-}
-
-.results-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--space-4);
-  border-bottom: 1px solid var(--border-primary);
-  background: var(--surface-hover);
-}
-
-.results-header h4 {
-  margin: 0;
-  color: var(--text-primary);
-}
-
-.results-confidence {
-  font-size: var(--fs-sm);
-  color: var(--success);
+/* Transcript */
+.transcript-section h4 {
+  font-size: var(--fs-base);
   font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+  margin: 0 0 var(--space-3) 0;
 }
 
-.results-segments {
+.transcript-content {
   max-height: 300px;
   overflow-y: auto;
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
 }
 
-.result-segment {
+.transcript-segment {
   display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-4);
+  gap: var(--space-3);
+  padding: var(--space-3);
   border-bottom: 1px solid var(--border-primary);
   cursor: pointer;
   transition: var(--transition-fast);
 }
 
-.result-segment:hover {
+.transcript-segment:hover {
   background: var(--surface-hover);
 }
 
-.result-segment:last-child {
+.transcript-segment.active {
+  background: color-mix(in srgb, var(--lina-orange) 10%, transparent);
+}
+
+.transcript-segment:last-child {
   border-bottom: none;
 }
 
 .segment-time {
-  font-size: var(--fs-sm);
+  font-size: var(--fs-xs);
   color: var(--text-tertiary);
-  font-family: var(--font-mono);
-  min-width: 100px;
+  min-width: 50px;
+}
+
+.segment-speaker {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+  min-width: 60px;
 }
 
 .segment-text {
   flex: 1;
-  color: var(--text-primary);
-}
-
-.segment-confidence {
-  font-size: var(--fs-sm);
-  color: var(--success);
-  font-weight: var(--fw-semibold);
-  min-width: 50px;
-  text-align: right;
-}
-
-.results-actions {
-  display: flex;
-  gap: var(--space-2);
-  justify-content: flex-end;
-  padding: var(--space-4);
-  border-top: 1px solid var(--border-primary);
-  background: var(--surface-hover);
-}
-
-.results-btn {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border-primary);
-  background: var(--surface);
-  border-radius: var(--radius-md);
-  font-size: var(--fs-sm);
-  cursor: pointer;
-  transition: var(--transition-fast);
-  color: var(--text-secondary);
-}
-
-.results-btn:hover {
-  background: var(--surface-hover);
-  color: var(--text-primary);
-}
-
-.results-btn.primary {
-  background: var(--lina-orange);
-  color: white;
-  border-color: var(--lina-orange);
-}
-
-/* Keywords */
-.keywords-container {
-  padding: var(--space-5);
-}
-
-.keywords-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: var(--space-3);
-  margin-bottom: var(--space-4);
-}
-
-.keyword-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--space-3);
-  border: 1px solid var(--border-primary);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: var(--transition-fast);
-  background: var(--surface);
-}
-
-.keyword-item:hover {
-  background: var(--surface-hover);
-}
-
-.keyword-item.selected {
-  background: color-mix(in srgb, var(--lina-orange) 10%, transparent);
-  border-color: var(--lina-orange);
-}
-
-.keyword-content {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.keyword-text {
-  font-weight: var(--fw-semibold);
-  color: var(--text-primary);
-}
-
-.keyword-type {
-  font-size: var(--fs-xs);
-  color: var(--text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.keyword-confidence {
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-semibold);
-  color: var(--success);
-}
-
-.keywords-actions {
-  display: flex;
-  gap: var(--space-2);
-  justify-content: flex-end;
-}
-
-.keywords-btn {
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border-primary);
-  background: var(--surface);
-  border-radius: var(--radius-md);
-  font-size: var(--fs-sm);
-  cursor: pointer;
-  transition: var(--transition-fast);
-  color: var(--text-secondary);
-}
-
-.keywords-btn:hover {
-  background: var(--surface-hover);
-  color: var(--text-primary);
-}
-
-.keywords-btn.primary {
-  background: var(--lina-orange);
-  color: white;
-  border-color: var(--lina-orange);
-}
-
-/* Results */
-.results-container {
-  padding: var(--space-5);
-}
-
-.results-meta {
-  display: flex;
-  gap: var(--space-3);
   font-size: var(--fs-sm);
   color: var(--text-secondary);
-}
-
-.results-filters {
-  display: flex;
-  gap: var(--space-4);
-  margin-bottom: var(--space-5);
-  padding: var(--space-4);
-  background: var(--surface-hover);
-  border-radius: var(--radius-md);
-}
-
-.filter-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.filter-label {
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-medium);
-  color: var(--text-primary);
-}
-
-.filter-select {
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border-primary);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  font-size: var(--fs-sm);
-  cursor: pointer;
-}
-
-.results-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-.result-item {
-  display: flex;
-  gap: var(--space-4);
-  padding: var(--space-4);
-  border: 1px solid var(--border-primary);
-  border-radius: var(--radius-lg);
-  cursor: pointer;
-  transition: var(--transition-fast);
-  background: var(--surface);
-}
-
-.result-item:hover {
-  background: var(--surface-hover);
-  border-color: var(--lina-orange);
-  transform: translateY(-1px);
-}
-
-.result-header {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-2);
-  min-width: 80px;
-}
-
-.result-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  background: var(--surface-hover);
-  border-radius: var(--radius-lg);
-  color: var(--lina-orange);
-}
-
-.result-meta {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-1);
-  font-size: var(--fs-xs);
-  text-align: center;
-}
-
-.result-type {
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.result-relevance {
-  color: var(--success);
-  font-weight: var(--fw-semibold);
-}
-
-.result-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.result-title {
-  font-size: var(--fs-lg);
-  font-weight: var(--fw-semibold);
-  color: var(--text-primary);
-  margin: 0 0 var(--space-2) 0;
-}
-
-.result-description {
-  color: var(--text-secondary);
-  margin: 0 0 var(--space-3) 0;
   line-height: var(--lh-relaxed);
 }
 
-.result-highlights {
-  display: flex;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-}
-
-.highlight-tag {
-  background: color-mix(in srgb, var(--lina-yellow) 20%, transparent);
-  color: var(--lina-orange);
-  padding: 2px 6px;
-  border-radius: var(--radius-sm);
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-semibold);
-}
-
-.result-actions {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  align-items: flex-end;
-}
-
-.result-action-btn {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border-primary);
-  background: var(--surface);
-  border-radius: var(--radius-md);
-  font-size: var(--fs-sm);
-  cursor: pointer;
-  transition: var(--transition-fast);
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-
-.result-action-btn:hover {
-  background: var(--surface-hover);
-  color: var(--text-primary);
-}
-
-.result-action-btn.primary {
-  background: var(--lina-orange);
-  color: white;
-  border-color: var(--lina-orange);
-}
-
-/* Help Section */
-.help-content {
-  padding: var(--space-5);
-}
-
-.help-categories {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: var(--space-6);
-}
-
-.help-category h4 {
-  margin: 0 0 var(--space-3) 0;
-  color: var(--text-primary);
-}
-
-.help-category ul {
-  margin: 0;
-  padding-left: var(--space-5);
-  list-style: none;
-}
-
-.help-category li {
-  position: relative;
-  margin-bottom: var(--space-2);
-  color: var(--text-secondary);
-  font-style: italic;
-}
-
-.help-category li::before {
-  content: '"';
-  position: absolute;
-  left: -20px;
-  color: var(--lina-orange);
-  font-size: var(--fs-lg);
-}
-
-.help-category li::after {
-  content: '"';
-  color: var(--lina-orange);
-  font-size: var(--fs-lg);
-}
-
-/* History */
-.history-list {
-  max-height: 400px;
+.transcript-full {
+  max-height: 500px;
   overflow-y: auto;
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
 }
 
-.history-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-4) var(--space-5);
+.transcript-line {
+  padding: var(--space-3);
   border-bottom: 1px solid var(--border-primary);
-  cursor: pointer;
-  transition: var(--transition-fast);
 }
 
-.history-item:hover {
-  background: var(--surface-hover);
-}
-
-.history-item:last-child {
+.transcript-line:last-child {
   border-bottom: none;
 }
 
-.history-content {
-  flex: 1;
-  min-width: 0;
+.line-header {
+  display: flex;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
 }
 
-.history-query {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-bottom: var(--space-2);
+.line-time {
+  font-size: var(--fs-xs);
+  color: var(--text-tertiary);
+}
+
+.line-speaker {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
   color: var(--text-primary);
 }
 
-.history-keywords {
-  display: flex;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-  margin-bottom: var(--space-2);
-}
-
-.history-keyword {
-  background: var(--surface-hover);
+.line-text {
+  font-size: var(--fs-sm);
   color: var(--text-secondary);
-  padding: 2px 6px;
-  border-radius: var(--radius-sm);
-  font-size: var(--fs-xs);
+  line-height: var(--lh-relaxed);
 }
 
-.keyword-more {
-  background: var(--lina-orange);
-  color: white;
-  padding: 2px 6px;
-  border-radius: var(--radius-sm);
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-semibold);
-}
-
-.history-meta {
+/* Empty State */
+.empty-state {
   display: flex;
-  gap: var(--space-3);
-  font-size: var(--fs-xs);
-  color: var(--text-tertiary);
-}
-
-.history-delete {
-  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: none;
-  background: none;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: var(--transition-fast);
-  color: var(--text-tertiary);
+  padding: var(--space-8);
+  text-align: center;
+  color: var(--text-secondary);
 }
 
-.history-delete:hover {
-  background: var(--error);
-  color: white;
+.empty-state h3 {
+  margin: var(--space-4) 0 var(--space-2) 0;
+  color: var(--text-primary);
 }
 
 /* Transitions */
@@ -1663,57 +1496,39 @@ onUnmounted(() => {
 
 .slide-down-enter-to,
 .slide-down-leave-from {
-  max-height: 600px;
+  max-height: 500px;
   opacity: 1;
 }
 
 /* Responsive */
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-@media (max-width: 1024px) {
-  .help-categories {
-    grid-template-columns: 1fr;
-  }
-}
-
 @media (max-width: 768px) {
   .page-header {
     flex-direction: column;
     align-items: flex-start;
   }
   
-  .section-header {
-    flex-direction: column;
-    gap: var(--space-3);
-    align-items: flex-start;
-  }
-  
-  .keywords-list {
+  .filters-grid {
     grid-template-columns: 1fr;
   }
   
-  .results-filters {
+  .result-meta {
     flex-direction: column;
-    gap: var(--space-3);
+    gap: var(--space-2);
   }
   
-  .result-item {
+  .result-info {
     flex-direction: column;
-    align-items: flex-start;
+    gap: var(--space-2);
   }
   
-  .result-actions {
-    flex-direction: row;
-    width: 100%;
-    justify-content: flex-end;
+  .modal-overlay {
+    padding: var(--space-2);
   }
   
-  .file-info {
-    flex-direction: column;
-    align-items: flex-start;
+  .modal-header,
+  .modal-body,
+  .modal-footer {
+    padding: var(--space-4);
   }
   
   .player-controls {
@@ -1721,9 +1536,8 @@ onUnmounted(() => {
     gap: var(--space-3);
   }
   
-  .processing-status {
-    flex-direction: column;
-    text-align: center;
+  .progress-container {
+    width: 100%;
   }
 }
 </style>

@@ -25,10 +25,11 @@
             <button 
               class="search-btn" 
               @click="handleSearch"
-              :disabled="!searchQuery.trim()"
+              :disabled="!searchQuery.trim() || isSearching"
             >
-              <IconSystem name="arrow-right" :size="16" />
-              검색
+              <IconSystem v-if="!isSearching" name="arrow-right" :size="16" />
+              <IconSystem v-else name="clock" :size="16" class="spinning" />
+              {{ isSearching ? '검색 중...' : '검색' }}
             </button>
           </div>
         </div>
@@ -54,153 +55,150 @@
       </div>
     </section>
 
-    <!-- New Updates Banner -->
-    <section class="updates-banner" v-if="newUpdates.length">
-      <div class="banner-content">
-        <div class="banner-icon">
-          <IconSystem name="info" :size="24" />
-        </div>
-        <div class="banner-messages">
-          <div 
-            v-for="update in newUpdates" 
-            :key="update.id"
-            class="update-message"
-            :class="update.type"
-          >
-            <div class="update-content">
-              <span class="update-text">{{ update.message }}</span>
-              <span class="update-time">{{ update.time }}</span>
-            </div>
-            <button class="update-action" @click="viewUpdate(update)" v-if="update.actionText">
-              {{ update.actionText }}
-              <IconSystem name="arrow-right" :size="14" />
-            </button>
-            <button class="update-close" @click="dismissUpdate(update.id)">
-              <IconSystem name="x" :size="16" />
-            </button>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Quick Stats -->
-    <section class="stats-section">
+    <!-- Search Results -->
+    <section v-if="searchResults" class="search-results-section">
       <div class="section-header">
-        <h2 class="section-title">플랫폼 현황</h2>
-        <p class="section-subtitle">실시간 데이터 플랫폼 사용 현황을 확인하세요</p>
+        <h2 class="section-title">
+          검색 결과
+          <span class="results-count">({{ getTotalResults() }}개 항목)</span>
+        </h2>
+        <button class="clear-search-btn" @click="clearSearch">
+          <IconSystem name="x" :size="16" />
+          검색 지우기
+        </button>
       </div>
       
-      <div class="stats-grid">
-        <div class="stat-card" v-for="stat in stats" :key="stat.label">
-          <div class="stat-header">
-            <div class="stat-icon">
-              <IconSystem :name="stat.icon" :size="24" />
+      <div class="search-results-content">
+        <div 
+          v-for="(items, category) in searchResults" 
+          :key="category"
+          v-show="items.length > 0"
+          class="result-category"
+        >
+          <div class="category-header" @click="toggleCategory(category)">
+            <div class="category-info">
+              <IconSystem :name="getCategoryIcon(category)" :size="20" />
+              <h3 class="category-title">{{ getCategoryLabel(category) }}</h3>
+              <span class="category-count">({{ items.length }})</span>
             </div>
-            <div class="stat-trend" :class="stat.trend">
-              <IconSystem :name="stat.trend === 'up' ? 'trending-up' : 'trending-down'" :size="16" />
-              {{ stat.change }}
+            <IconSystem 
+              :name="collapsedCategories[category] ? 'chevron-right' : 'chevron-down'" 
+              :size="16" 
+              class="category-toggle"
+            />
+          </div>
+          
+          <div 
+            v-show="!collapsedCategories[category]"
+            class="result-items"
+          >
+            <div 
+              v-for="item in items" 
+              :key="item.id"
+              class="result-item"
+            >
+              <div class="result-content">
+                <h4 class="result-title">{{ item.title }}</h4>
+                <p class="result-description">{{ item.description }}</p>
+                <div class="result-tags">
+                  <span 
+                    v-for="tag in item.tags" 
+                    :key="tag"
+                    class="result-tag"
+                    :class="{ highlighted: tag.toLowerCase().includes(searchQuery.toLowerCase()) }"
+                  >
+                    {{ tag }}
+                  </span>
+                </div>
+              </div>
+              <div class="result-actions">
+                <button class="result-btn">보기</button>
+              </div>
             </div>
           </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ stat.value }}</div>
-            <div class="stat-label">{{ stat.label }}</div>
+        </div>
+        
+        <div v-if="getTotalResults() === 0" class="no-results">
+          <IconSystem name="search" :size="48" />
+          <h3>검색 결과가 없습니다</h3>
+          <p>"{{ searchQuery }}"에 대한 결과를 찾을 수 없습니다</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Compact Overview -->
+    <section class="overview-section">
+      <div class="overview-grid">
+        <!-- Updates -->
+        <div class="overview-card" v-if="newUpdates.length">
+          <div class="card-header">
+            <IconSystem name="info" :size="20" />
+            <h3>업데이트</h3>
+            <span class="badge">{{ newUpdates.length }}</span>
           </div>
-          <div class="stat-progress">
-            <div class="progress-bar" :style="{ width: stat.progress + '%' }"></div>
+          <div class="card-content">
+            <div 
+              v-for="update in newUpdates.slice(0, 2)" 
+              :key="update.id"
+              class="compact-item"
+            >
+              <span class="item-text">{{ update.message }}</span>
+              <span class="item-time">{{ update.time }}</span>
+            </div>
+            <button v-if="newUpdates.length > 2" class="view-more-btn">
+              +{{ newUpdates.length - 2 }}개 더보기
+            </button>
+          </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="overview-card">
+          <div class="card-header">
+            <IconSystem name="activity" :size="20" />
+            <h3>최근 활동</h3>
+          </div>
+          <div class="card-content">
+            <div 
+              v-for="activity in recentActivities.slice(0, 3)" 
+              :key="activity.id"
+              class="compact-item"
+            >
+              <div class="item-main">
+                <span class="item-text">{{ activity.title }}</span>
+                <span class="item-status" :class="activity.status">{{ activity.statusText }}</span>
+              </div>
+              <span class="item-time">{{ activity.time }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Popular Datasets -->
+        <div class="overview-card">
+          <div class="card-header">
+            <IconSystem name="database" :size="20" />
+            <h3>인기 데이터셋</h3>
+          </div>
+          <div class="card-content">
+            <div 
+              v-for="dataset in popularDatasets.slice(0, 3)" 
+              :key="dataset.id"
+              class="compact-item"
+              @click="openDataset(dataset)"
+            >
+              <div class="item-main">
+                <span class="item-text">{{ dataset.title }}</span>
+                <span class="item-meta">{{ dataset.views }} views</span>
+              </div>
+              <span class="item-category">{{ dataset.categoryName }}</span>
+            </div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Recent Activity -->
-    <section class="activity-section">
-      <div class="section-header-inline">
-        <div>
-          <h2 class="section-title">최근 활동</h2>
-          <p class="section-subtitle">팀의 최신 데이터 작업을 확인하세요</p>
-        </div>
-        <button class="view-all-btn">
-          <span>전체 보기</span>
-          <IconSystem name="arrow-right" :size="16" />
-        </button>
-      </div>
-      
-      <div class="activity-list">
-        <div 
-          v-for="activity in recentActivities" 
-          :key="activity.id"
-          class="activity-item"
-        >
-          <div class="activity-icon" :class="activity.type">
-            <IconSystem :name="activity.icon" :size="20" />
-          </div>
-          <div class="activity-content">
-            <div class="activity-title">{{ activity.title }}</div>
-            <div class="activity-description">{{ activity.description }}</div>
-            <div class="activity-meta">
-              <span class="activity-user">{{ activity.user }}</span>
-              <span class="activity-time">{{ activity.time }}</span>
-            </div>
-          </div>
-          <div class="activity-status" :class="activity.status">
-            <IconSystem :name="getStatusIcon(activity.status)" :size="16" />
-            <span>{{ activity.statusText }}</span>
-          </div>
-        </div>
-      </div>
-    </section>
 
-    <!-- Popular Datasets -->
-    <section class="datasets-section">
-      <div class="section-header-inline">
-        <div>
-          <h2 class="section-title">인기 데이터셋</h2>
-          <p class="section-subtitle">가장 많이 사용되는 데이터셋을 확인하세요</p>
-        </div>
-        <button class="view-all-btn">
-          <span>더 보기</span>
-          <IconSystem name="arrow-right" :size="16" />
-        </button>
-      </div>
-      
-      <div class="datasets-grid">
-        <div 
-          v-for="dataset in popularDatasets" 
-          :key="dataset.id"
-          class="dataset-card"
-          @click="openDataset(dataset)"
-        >
-          <div class="dataset-header">
-            <div class="dataset-icon" :class="dataset.category">
-              <IconSystem :name="dataset.icon" :size="24" />
-            </div>
-            <div class="dataset-meta">
-              <span class="dataset-category">{{ dataset.categoryName }}</span>
-              <span class="dataset-updated">{{ dataset.updated }}</span>
-            </div>
-          </div>
-          <h3 class="dataset-title">{{ dataset.title }}</h3>
-          <p class="dataset-description">{{ dataset.description }}</p>
-          <div class="dataset-footer">
-            <div class="dataset-stats">
-              <div class="stat">
-                <IconSystem name="eye" :size="16" />
-                <span>{{ dataset.views }}</span>
-              </div>
-              <div class="stat">
-                <IconSystem name="activity" :size="16" />
-                <span>{{ dataset.queries }}</span>
-              </div>
-            </div>
-            <div class="dataset-tags">
-              <span v-for="tag in dataset.tags" :key="tag" class="tag">
-                {{ tag }}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
+
+
   </div>
 </template>
 
@@ -209,13 +207,61 @@ import { ref } from 'vue'
 import IconSystem from './IconSystem.vue'
 
 const searchQuery = ref('')
+const searchResults = ref(null)
+const isSearching = ref(false)
+const collapsedCategories = ref({})
 
-const stats = [
-  { icon: 'database', label: '활성 데이터셋', value: '1,247', change: '+12%', trend: 'up', progress: 75 },
-  { icon: 'activity', label: '일일 쿼리', value: '8,932', change: '+5%', trend: 'up', progress: 85 },
-  { icon: 'users', label: '활성 사용자', value: '342', change: '-2%', trend: 'down', progress: 60 },
-  { icon: 'clock', label: '평균 응답시간', value: '1.2s', change: '-15%', trend: 'up', progress: 90 }
-]
+// Sample data for search
+const sampleData = {
+  dashboards: [
+    { id: 1, title: 'Claim Summary Dashboard', description: '보험 청구 현황과 처리 상태를 종합적으로 관리하는 대시보드', tags: ['claim', 'insurance', 'summary'] },
+    { id: 2, title: 'Claim Processing Monitor', description: '실시간 보험금 청구 처리 모니터링 대시보드', tags: ['claim', 'processing', 'realtime'] },
+    { id: 3, title: 'Customer Analytics', description: '고객 행동 패턴 및 세그먼트 분석', tags: ['customer', 'analytics'] },
+    { id: 4, title: 'Sales Performance', description: '영업 성과 및 KPI 모니터링', tags: ['sales', 'kpi'] },
+    { id: 5, title: 'Claim Fraud Analytics', description: '보험금 청구 사기 패턴 분석 대시보드', tags: ['claim', 'fraud', 'analytics'] },
+    { id: 6, title: 'Policy Performance', description: '보험 상품별 성과 분석', tags: ['policy', 'performance'] },
+    { id: 7, title: 'Underwriting Dashboard', description: '언더라이팅 프로세스 모니터링', tags: ['underwriting', 'process'] }
+  ],
+  reports: [
+    { id: 1, title: 'Monthly Claim Report', description: '월간 보험금 청구 분석 리포트', tags: ['claim', 'monthly', 'report'] },
+    { id: 2, title: 'Claim Settlement Analysis', description: '보험금 지급 현황 및 트렌드 분석 보고서', tags: ['claim', 'settlement', 'analysis'] },
+    { id: 3, title: 'Customer Satisfaction Survey', description: '고객 만족도 조사 결과', tags: ['customer', 'satisfaction'] },
+    { id: 4, title: 'Risk Assessment Report', description: '리스크 평가 및 분석 보고서', tags: ['risk', 'assessment'] },
+    { id: 5, title: 'Claim Frequency Report', description: '보험금 청구 빈도 분석 리포트', tags: ['claim', 'frequency', 'statistics'] },
+    { id: 6, title: 'Annual Claim Summary', description: '연간 보험금 청구 종합 보고서', tags: ['claim', 'annual', 'summary'] },
+    { id: 7, title: 'Regulatory Compliance Report', description: '규제 준수 현황 보고서', tags: ['compliance', 'regulatory'] }
+  ],
+  tables: [
+    { id: 1, title: 'claims', description: '보험 청구 데이터 테이블', tags: ['claim', 'insurance', 'data'] },
+    { id: 2, title: 'claim_details', description: '보험금 청구 상세 정보 테이블', tags: ['claim', 'details', 'transaction'] },
+    { id: 3, title: 'customers', description: '고객 정보 마스터 테이블', tags: ['customer', 'master'] },
+    { id: 4, title: 'policies', description: '보험 계약 정보 테이블', tags: ['policy', 'contract'] },
+    { id: 5, title: 'claim_history', description: '보험금 청구 이력 테이블', tags: ['claim', 'history', 'audit'] },
+    { id: 6, title: 'claim_documents', description: '보험금 청구 관련 문서 테이블', tags: ['claim', 'documents', 'files'] },
+    { id: 7, title: 'underwriting_data', description: '언더라이팅 데이터 테이블', tags: ['underwriting', 'risk', 'assessment'] },
+    { id: 8, title: 'premium_payments', description: '보험료 납입 내역 테이블', tags: ['premium', 'payment', 'billing'] }
+  ],
+  models: [
+    { id: 1, title: 'Claim Fraud Detection', description: '보험금 청구 사기 탐지 모델', tags: ['claim', 'fraud', 'ml'] },
+    { id: 2, title: 'Claim Amount Prediction', description: '보험금 청구 금액 예측 모델', tags: ['claim', 'prediction', 'amount'] },
+    { id: 3, title: 'Customer Churn Prediction', description: '고객 이탈 예측 모델', tags: ['customer', 'churn', 'prediction'] },
+    { id: 4, title: 'Risk Scoring Model', description: '리스크 점수 산출 모델', tags: ['risk', 'scoring'] },
+    { id: 5, title: 'Claim Processing Time Prediction', description: '보험금 청구 처리 시간 예측 모델', tags: ['claim', 'processing', 'time'] },
+    { id: 6, title: 'Claim Approval Probability', description: '보험금 청구 승인 확률 예측 모델', tags: ['claim', 'approval', 'probability'] },
+    { id: 7, title: 'Premium Pricing Model', description: '보험료 산정 모델', tags: ['premium', 'pricing', 'actuarial'] }
+  ],
+  apis: [
+    { id: 1, title: 'Claim Processing API', description: '보험금 청구 처리를 위한 REST API', tags: ['claim', 'api', 'rest'] },
+    { id: 2, title: 'Claim Status API', description: '보험금 청구 상태 조회 API', tags: ['claim', 'status', 'inquiry'] },
+    { id: 3, title: 'Customer Data API', description: '고객 데이터 조회 및 관리 API', tags: ['customer', 'data', 'api'] },
+    { id: 4, title: 'Policy Management API', description: '보험 계약 관리 API', tags: ['policy', 'management'] },
+    { id: 5, title: 'Claim Submission API', description: '보험금 청구 접수 API', tags: ['claim', 'submission', 'intake'] },
+    { id: 6, title: 'Claim Documents API', description: '보험금 청구 문서 관리 API', tags: ['claim', 'documents', 'upload'] },
+    { id: 7, title: 'Underwriting API', description: '언더라이팅 프로세스 API', tags: ['underwriting', 'process', 'automation'] },
+    { id: 8, title: 'Premium Calculation API', description: '보험료 계산 API', tags: ['premium', 'calculation', 'pricing'] }
+  ]
+}
+
 
 const recentActivities = [
   {
@@ -302,10 +348,66 @@ const popularDatasets = [
 ]
 
 const handleSearch = () => {
-  if (searchQuery.value.trim()) {
-    console.log('검색:', searchQuery.value)
-    // 실제 검색 로직 구현
+  console.log('검색 버튼 클릭됨, 검색어:', searchQuery.value)
+  if (!searchQuery.value.trim()) return
+  
+  isSearching.value = true
+  console.log('검색 시작...')
+  
+  // Simulate search delay
+  setTimeout(() => {
+    const query = searchQuery.value.toLowerCase()
+    const results = {}
+    
+    // Search in each category
+    Object.keys(sampleData).forEach(category => {
+      results[category] = sampleData[category].filter(item => 
+        item.title.toLowerCase().includes(query) ||
+        item.description.toLowerCase().includes(query) ||
+        item.tags.some(tag => tag.toLowerCase().includes(query))
+      )
+    })
+    
+    searchResults.value = results
+    isSearching.value = false
+    console.log('검색 완료, 결과:', results)
+  }, 800)
+}
+
+const clearSearch = () => {
+  searchQuery.value = ''
+  searchResults.value = null
+}
+
+const getCategoryIcon = (category) => {
+  const icons = {
+    dashboards: 'activity',
+    reports: 'file-text',
+    tables: 'database',
+    models: 'box',
+    apis: 'api'
   }
+  return icons[category] || 'file'
+}
+
+const getCategoryLabel = (category) => {
+  const labels = {
+    dashboards: '대시보드',
+    reports: '리포트',
+    tables: '테이블',
+    models: '모델',
+    apis: 'API'
+  }
+  return labels[category] || category
+}
+
+const getTotalResults = () => {
+  if (!searchResults.value) return 0
+  return Object.values(searchResults.value).reduce((total, items) => total + items.length, 0)
+}
+
+const toggleCategory = (category) => {
+  collapsedCategories.value[category] = !collapsedCategories.value[category]
 }
 
 const quickAction = (action) => {
@@ -464,6 +566,8 @@ const openDataset = (dataset) => {
   mask-composite: xor;
   opacity: 0;
   transition: var(--transition-fast);
+  pointer-events: none;
+  z-index: -1;
 }
 
 .search-box:focus-within {
@@ -491,6 +595,8 @@ const openDataset = (dataset) => {
   font-size: var(--fs-base);
   background: transparent;
   color: var(--text-primary);
+  position: relative;
+  z-index: 1;
 }
 
 .search-input::placeholder {
@@ -525,6 +631,177 @@ const openDataset = (dataset) => {
   transform: none;
 }
 
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Compact Overview Section */
+.overview-section {
+  margin-bottom: var(--space-8);
+}
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: var(--space-6);
+}
+
+.overview-card {
+  background: var(--surface);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  transition: var(--transition-fast);
+}
+
+.overview-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--lina-yellow);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface-hover);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.card-header h3 {
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+  margin: 0;
+  flex: 1;
+}
+
+.badge {
+  background: var(--lina-yellow);
+  color: var(--gray-800);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  min-width: 20px;
+  text-align: center;
+}
+
+.card-content {
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.compact-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border-secondary);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.compact-item:last-child {
+  border-bottom: none;
+}
+
+.compact-item:hover {
+  background: var(--surface-hover);
+  margin: 0 calc(-1 * var(--space-2));
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+}
+
+.item-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex: 1;
+  min-width: 0;
+}
+
+.item-text {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: var(--lh-snug);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item-time {
+  font-size: var(--fs-xs);
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.item-status {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.item-status.success {
+  background: color-mix(in srgb, var(--success) 10%, transparent);
+  color: var(--success);
+}
+
+.item-status.running {
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
+  color: var(--warning);
+}
+
+.item-status.error {
+  background: color-mix(in srgb, var(--error) 10%, transparent);
+  color: var(--error);
+}
+
+.item-meta {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+.item-category {
+  font-size: var(--fs-xs);
+  color: var(--lina-orange);
+  font-weight: var(--fw-medium);
+  white-space: nowrap;
+}
+
+.view-more-btn {
+  background: none;
+  border: 1px solid var(--border-primary);
+  color: var(--text-secondary);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--fs-xs);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  align-self: flex-start;
+}
+
+.view-more-btn:hover {
+  border-color: var(--lina-yellow);
+  color: var(--lina-orange);
+  background: var(--surface-hover);
+}
+
 .quick-actions {
   display: flex;
   gap: var(--space-4);
@@ -556,15 +833,15 @@ const openDataset = (dataset) => {
 }
 
 .quick-action.primary {
-  background: var(--lina-orange);
-  color: white;
-  border-color: var(--lina-orange);
+  background: var(--lina-yellow);
+  color: var(--gray-800);
+  border-color: var(--lina-yellow);
 }
 
 .quick-action.primary:hover {
-  background: var(--lina-yellow);
-  border-color: var(--lina-yellow);
-  color: var(--text-primary);
+  background: var(--lina-yellow-light);
+  border-color: var(--lina-yellow-light);
+  color: var(--gray-800);
 }
 
 /* Updates Banner */
@@ -669,8 +946,8 @@ const openDataset = (dataset) => {
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
-  background: var(--lina-orange);
-  color: white;
+  background: var(--lina-yellow);
+  color: var(--gray-800);
   border: none;
   border-radius: var(--radius-md);
   font-size: var(--fs-sm);
@@ -681,7 +958,8 @@ const openDataset = (dataset) => {
 }
 
 .update-action:hover {
-  background: var(--lina-yellow);
+  background: var(--lina-yellow-light);
+  color: var(--gray-800);
   transform: translateY(-1px);
 }
 
@@ -1252,5 +1530,209 @@ const openDataset = (dataset) => {
     align-items: flex-start;
     gap: var(--space-3);
   }
+  
+  .result-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-3);
+  }
+  
+  .result-actions {
+    align-self: flex-end;
+  }
+  
+  .category-header {
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+}
+
+/* Search Results */
+.search-results-section {
+  margin-top: var(--space-8);
+}
+
+.results-count {
+  font-size: var(--fs-base);
+  color: var(--text-secondary);
+  font-weight: var(--fw-normal);
+}
+
+.clear-search-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-primary);
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+
+.clear-search-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.search-results-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.result-category {
+  background: var(--surface);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.category-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface-hover);
+  border-bottom: 1px solid var(--border-primary);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.category-header:hover {
+  background: var(--surface-active);
+}
+
+.category-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: 1;
+}
+
+.category-toggle {
+  color: var(--text-secondary);
+  transition: var(--transition-fast);
+}
+
+.category-title {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+  margin: 0;
+  flex: 1;
+}
+
+.category-count {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+
+.result-items {
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  transition: all var(--transition-normal);
+  overflow: hidden;
+}
+
+.result-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding: var(--space-3);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  transition: var(--transition-fast);
+}
+
+.result-item:hover {
+  background: var(--surface-hover);
+  border-color: var(--lina-yellow);
+}
+
+.result-content {
+  flex: 1;
+}
+
+.result-title {
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+  margin: 0 0 var(--space-2) 0;
+}
+
+.result-description {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-3) 0;
+  line-height: var(--lh-relaxed);
+}
+
+.result-tags {
+  display: flex;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+
+.result-tag {
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  transition: var(--transition-fast);
+}
+
+.result-tag.highlighted {
+  background: var(--lina-yellow);
+  color: var(--gray-800);
+}
+
+.result-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.result-btn {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-primary);
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+
+.result-btn:hover {
+  background: var(--lina-yellow);
+  color: var(--gray-800);
+  border-color: var(--lina-yellow);
+}
+
+.no-results {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8);
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.no-results h3 {
+  margin: var(--space-4) 0 var(--space-2) 0;
+  color: var(--text-primary);
+}
+
+.no-results p {
+  margin: 0;
 }
 </style>

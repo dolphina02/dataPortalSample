@@ -67,6 +67,11 @@
       <polyline points="9,18 15,12 9,6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
     </g>
 
+    <!-- Chevron Left -->
+    <g v-else-if="name === 'chevron-left'">
+      <polyline points="15,18 9,12 15,6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+
     <!-- Filter -->
     <g v-else-if="name === 'filter'">
       <polygon points="22,3 2,3 10,12.46 10,19 14,21 14,12.46" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -170,6 +175,39 @@
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       <polyline points="7,10 12,15 17,10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    </g>
+
+    <!-- Share -->
+    <g v-else-if="name === 'share'">
+      <circle cx="18" cy="5" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
+      <circle cx="6" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
+      <circle cx="18" cy="19" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
+      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" stroke="currentColor" stroke-width="2"/>
+      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" stroke="currentColor" stroke-width="2"/>
+    </g>
+
+    <!-- Calendar -->
+    <g v-else-if="name === 'calendar'">
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/>
+      <line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" stroke-width="2"/>
+    </g>
+
+    <!-- Monitor -->
+    <g v-else-if="name === 'monitor'">
+      <rect x="2" y="3" width="20" height="14" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/>
+      <line x1="8" y1="21" x2="16" y2="21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <line x1="12" y1="17" x2="12" y2="21" stroke="currentColor" stroke-width="2"/>
+    </g>
+
+    <!-- Presentation -->
+    <g v-else-if="name === 'presentation'">
+      <rect x="2" y="3" width="20" height="14" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/>
+      <line x1="12" y1="17" x2="12" y2="22" stroke="currentColor" stroke-width="2"/>
+      <line x1="8" y1="22" x2="16" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="8" cy="9" r="2" fill="currentColor"/>
+      <path d="M14 7l-2 2 2 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
     </g>
 
     <!-- Plus -->
@@ -366,6 +404,16 @@
     <g v-else-if="name === 'x'">
       <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
       <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    </g>
+
+    <!-- Heart -->
+    <g v-else-if="name === 'heart'">
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+
+    <!-- Star -->
+    <g v-else-if="name === 'star'">
+      <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
     </g>
   </svg>
 </template>

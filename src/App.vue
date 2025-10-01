@@ -17,7 +17,7 @@
                 </div>
               </div>
               <div v-else key="collapsed" class="brand-collapsed">
-                <div class="logo collapsed">
+                <div class="logo collapsed" @click="expandSidebar">
                   <img src="/lina-logo.png" alt="L" class="logo-image collapsed" />
                 </div>
               </div>
@@ -48,6 +48,7 @@
                   class="nav-item" 
                   :class="{ active: activeView === item.id }"
                   @click="setActiveView(item.id)"
+                  :title="sidebarCollapsed ? item.label : ''"
                 >
                   <div class="nav-item-icon">
                     <IconSystem :name="item.icon" :size="20" />
@@ -71,6 +72,7 @@
                   class="nav-item" 
                   :class="{ active: activeView === item.id }"
                   @click="setActiveView(item.id)"
+                  :title="sidebarCollapsed ? item.label : ''"
                 >
                   <div class="nav-item-icon">
                     <IconSystem :name="item.icon" :size="20" />
@@ -94,6 +96,7 @@
                   class="nav-item" 
                   :class="{ active: activeView === item.id }"
                   @click="setActiveView(item.id)"
+                  :title="sidebarCollapsed ? item.label : ''"
                 >
                   <div class="nav-item-icon">
                     <IconSystem :name="item.icon" :size="20" />
@@ -129,10 +132,14 @@
       </aside>
 
       <!-- Main Content -->
-      <main class="main-content">
-        <div class="content-wrapper">
+       <main class="main-content">
+         <div class="content-wrapper">
           <Transition name="page" mode="out-in">
-            <component :is="currentView" :key="activeView" />
+            <component 
+              :is="currentView" 
+              :key="activeView" 
+              @navigate-to-dashboard="navigateToDashboard"
+            />
           </Transition>
         </div>
       </main>
@@ -178,7 +185,9 @@ import TextToSqlView from './components/TextToSqlView.vue'
 import ModelManagementView from './components/ModelManagementView.vue'
 import SttSearchView from './components/SttSearchView.vue'
 import DashboardView from './components/DashboardView.vue'
+import DashboardStoreView from './components/DashboardStoreView.vue'
 import ApiView from './components/ApiView.vue'
+import ChubbDataView from './components/ChubbDataView.vue'
 
 // Reactive state
 const sidebarCollapsed = ref(false)
@@ -189,8 +198,10 @@ let toastId = 0
 // Menu configuration
 const mainMenuItems = [
   { id: 'home', icon: 'home', label: '홈' },
-  { id: 'dashboard', icon: 'dashboard', label: '대시보드', badge: '3' },
-  { id: 'search', icon: 'search', label: '데이터 탐색' }
+  { id: 'dashboard-store', icon: 'grid', label: 'Dashboard Store' },
+  { id: 'dashboard', icon: 'activity', label: 'My Dashboard', badge: '2' },
+  { id: 'search', icon: 'file-text', label: 'Data Report' },
+  { id: 'chubb-data', icon: 'database', label: 'Chubb Data' }
 ]
 
 const analysisMenuItems = [
@@ -213,7 +224,9 @@ const viewComponents = {
   'model-management': ModelManagementView,
   'stt-search': SttSearchView,
   dashboard: DashboardView,
-  api: ApiView
+  'dashboard-store': DashboardStoreView,
+  api: ApiView,
+  'chubb-data': ChubbDataView
 }
 
 // Computed
@@ -225,12 +238,20 @@ const toggleSidebar = () => {
   localStorage.setItem('sidebar-collapsed', sidebarCollapsed.value)
 }
 
+const expandSidebar = () => {
+  if (sidebarCollapsed.value) {
+    sidebarCollapsed.value = false
+    localStorage.setItem('sidebar-collapsed', false)
+  }
+}
+
 const setActiveView = (viewId) => {
   activeView.value = viewId
   
-  // Auto-collapse on mobile
+  // Auto-collapse sidebar only on mobile
   if (window.innerWidth <= 768) {
     sidebarCollapsed.value = true
+    localStorage.setItem('sidebar-collapsed', true)
   }
 }
 
@@ -273,6 +294,11 @@ const handleResize = () => {
   }
 }
 
+const navigateToDashboard = () => {
+  setActiveView('dashboard')
+  addToast('성공!', 'My Dashboard로 이동했습니다', 'success')
+}
+
 // Lifecycle
 onMounted(() => {
   // Restore sidebar state
@@ -303,14 +329,8 @@ onUnmounted(() => {
 }
 
 .app-layout {
-  display: grid;
-  grid-template-columns: 280px 1fr;
   min-height: 100vh;
-  transition: var(--transition-normal);
-}
-
-.app-layout.sidebar-collapsed {
-  grid-template-columns: 80px 1fr;
+  position: relative;
 }
 
 /* Sidebar */
@@ -319,7 +339,11 @@ onUnmounted(() => {
   border-right: 1px solid var(--border-primary);
   display: flex;
   flex-direction: column;
-  position: relative;
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: 280px;
   transition: var(--transition-normal);
   z-index: var(--z-sticky);
 }
@@ -371,6 +395,14 @@ onUnmounted(() => {
 .logo.collapsed {
   width: 40px;
   height: 40px;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  transition: var(--transition-fast);
+}
+
+.logo.collapsed:hover {
+  background: var(--surface-hover);
+  transform: scale(1.05);
 }
 
 .logo-image {
@@ -505,8 +537,8 @@ onUnmounted(() => {
 .nav-item.active {
   background: linear-gradient(135deg, 
     color-mix(in srgb, var(--lina-yellow) 15%, transparent) 0%, 
-    color-mix(in srgb, var(--lina-orange) 10%, transparent) 100%);
-  color: var(--lina-orange);
+    color-mix(in srgb, var(--lina-yellow) 10%, transparent) 100%);
+  color: var(--lina-yellow-dark);
   font-weight: var(--fw-semibold);
 }
 
@@ -545,6 +577,8 @@ onUnmounted(() => {
   justify-content: center;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
+
+
 
 /* Sidebar Footer */
 .sidebar-footer {
@@ -631,7 +665,13 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  margin-left: 280px;
   overflow: hidden;
+  transition: var(--transition-normal);
+}
+
+.sidebar-collapsed .main-content {
+  margin-left: 80px;
 }
 
 .content-wrapper {
@@ -703,7 +743,7 @@ onUnmounted(() => {
 }
 
 .toast.warning .toast-icon {
-  color: var(--lina-orange);
+  color: var(--lina-yellow-dark);
 }
 
 .toast.info .toast-icon {
@@ -796,21 +836,17 @@ onUnmounted(() => {
 
 /* Responsive */
 @media (max-width: 768px) {
-  .app-layout {
-    grid-template-columns: 1fr;
+  .main-content {
+    margin-left: 0;
   }
   
-  .app-layout.sidebar-collapsed {
-    grid-template-columns: 1fr;
+  .sidebar-collapsed .main-content {
+    margin-left: 0;
   }
   
   .sidebar {
-    position: fixed;
-    left: 0;
-    top: 0;
-    width: 280px;
-    z-index: var(--z-modal);
     transform: translateX(-100%);
+    z-index: var(--z-modal);
   }
   
   .sidebar:not(.collapsed) {

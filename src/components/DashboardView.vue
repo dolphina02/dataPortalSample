@@ -1,962 +1,940 @@
 <template>
   <div class="dashboard-view">
-    <div class="dashboard-header">
-      <div class="header-content">
-        <h2 class="page-title">대시보드</h2>
-        <p class="page-subtitle">실시간 데이터 현황을 한눈에 확인하세요</p>
-      </div>
-      <div class="header-actions">
-        <select v-model="selectedPeriod" class="period-select">
-          <option value="today">오늘</option>
-          <option value="week">이번 주</option>
-          <option value="month">이번 달</option>
-          <option value="quarter">분기</option>
-        </select>
-        <button class="refresh-btn" @click="refreshData">
-          <span class="refresh-icon" :class="{ spinning: isRefreshing }">🔄</span>
-          새로고침
-        </button>
-      </div>
-    </div>
-
-    <!-- Key Metrics -->
-    <section class="metrics-section">
-      <div class="metrics-grid">
-        <div 
-          v-for="metric in keyMetrics" 
-          :key="metric.id"
-          class="metric-card"
-          :class="metric.trend"
-        >
-          <div class="metric-header">
-            <div class="metric-icon">{{ metric.icon }}</div>
-            <div class="metric-change" :class="metric.trend">
-              {{ metric.change }}
-            </div>
-          </div>
-          <div class="metric-content">
-            <div class="metric-value">{{ metric.value }}</div>
-            <div class="metric-label">{{ metric.label }}</div>
-          </div>
-          <div class="metric-chart">
-            <div class="mini-chart" :style="{ '--progress': metric.progress + '%' }"></div>
+    <!-- Dashboard Slider -->
+    <section class="dashboard-slider">
+      <div class="slider-header">
+        <div class="dashboard-info">
+          <h2 class="current-dashboard-title">{{ dashboards[currentSlide]?.title || 'Dashboard' }}</h2>
+          <div class="slide-counter">
+            {{ currentSlide + 1 }} / {{ dashboards.length }}
           </div>
         </div>
-      </div>
-    </section>
-
-    <!-- Charts Section -->
-    <section class="charts-section">
-      <div class="charts-grid">
-        <!-- Revenue Chart -->
-        <div class="chart-card large">
-          <div class="chart-header">
-            <h3 class="chart-title">매출 추이</h3>
-            <div class="chart-controls">
-              <button 
-                v-for="period in chartPeriods" 
-                :key="period.value"
-                class="chart-btn"
-                :class="{ active: selectedChartPeriod === period.value }"
-                @click="selectedChartPeriod = period.value"
-              >
-                {{ period.label }}
-              </button>
-            </div>
-          </div>
-          <div class="chart-container">
-            <div class="chart-placeholder">
-              <div class="chart-bars">
-                <div 
-                  v-for="(bar, index) in chartData" 
-                  :key="index"
-                  class="chart-bar"
-                  :style="{ height: bar.height + '%', '--delay': index * 0.1 + 's' }"
-                ></div>
-              </div>
-              <div class="chart-labels">
-                <span v-for="label in chartLabels" :key="label">{{ label }}</span>
-              </div>
-            </div>
-          </div>
+        <div class="slider-actions">
+          <button class="action-btn" @click="refreshData">
+            <IconSystem name="refresh" :size="16" />
+            새로고침
+          </button>
         </div>
-
-        <!-- User Activity -->
-        <div class="chart-card">
-          <div class="chart-header">
-            <h3 class="chart-title">사용자 활동</h3>
-          </div>
-          <div class="activity-stats">
-            <div class="activity-item">
-              <div class="activity-dot active"></div>
-              <div class="activity-info">
-                <div class="activity-label">활성 사용자</div>
-                <div class="activity-value">1,247</div>
-              </div>
-            </div>
-            <div class="activity-item">
-              <div class="activity-dot idle"></div>
-              <div class="activity-info">
-                <div class="activity-label">대기 중</div>
-                <div class="activity-value">89</div>
-              </div>
-            </div>
-            <div class="activity-item">
-              <div class="activity-dot offline"></div>
-              <div class="activity-info">
-                <div class="activity-label">오프라인</div>
-                <div class="activity-value">234</div>
-              </div>
-            </div>
-          </div>
-          <div class="donut-chart">
-            <div class="donut-center">
-              <div class="donut-value">1,570</div>
-              <div class="donut-label">총 사용자</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Top Queries -->
-        <div class="chart-card">
-          <div class="chart-header">
-            <h3 class="chart-title">인기 쿼리</h3>
-            <button class="view-all-link">전체 보기</button>
-          </div>
-          <div class="query-list">
-            <div 
-              v-for="query in topQueries" 
-              :key="query.id"
-              class="query-item"
-            >
-              <div class="query-content">
-                <div class="query-text">{{ query.text }}</div>
-                <div class="query-meta">
-                  <span class="query-user">{{ query.user }}</span>
-                  <span class="query-time">{{ query.time }}</span>
-                </div>
-              </div>
-              <div class="query-stats">
-                <div class="query-count">{{ query.count }}</div>
-                <div class="query-trend" :class="query.trend">
-                  {{ query.trend === 'up' ? '↗️' : '↘️' }}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- System Status -->
-        <div class="chart-card">
-          <div class="chart-header">
-            <h3 class="chart-title">시스템 상태</h3>
-          </div>
-          <div class="status-list">
-            <div 
-              v-for="service in systemStatus" 
-              :key="service.name"
-              class="status-item"
-            >
-              <div class="status-indicator" :class="service.status"></div>
-              <div class="status-content">
-                <div class="status-name">{{ service.name }}</div>
-                <div class="status-info">
-                  <span class="status-uptime">{{ service.uptime }}</span>
-                  <span class="status-response">{{ service.responseTime }}ms</span>
-                </div>
-              </div>
-              <div class="status-actions">
-                <button class="status-btn">상세</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Recent Activity -->
-    <section class="activity-section">
-      <div class="section-header">
-        <h3 class="section-title">최근 활동</h3>
-        <button class="view-all-btn">전체 보기</button>
       </div>
       
-      <div class="activity-timeline">
-        <div 
-          v-for="activity in recentActivities" 
-          :key="activity.id"
-          class="timeline-item"
+      <div class="slider-container">
+        <button 
+          class="slider-btn prev" 
+          @click="previousSlide"
+          :disabled="currentSlide === 0"
         >
-          <div class="timeline-marker" :class="activity.type"></div>
-          <div class="timeline-content">
-            <div class="timeline-header">
-              <span class="timeline-title">{{ activity.title }}</span>
-              <span class="timeline-time">{{ activity.time }}</span>
+          <IconSystem name="chevron-left" :size="24" />
+        </button>
+        
+        <div class="slider-content">
+          <div 
+            class="slides-wrapper" 
+            :style="{ transform: `translateX(-${currentSlide * 100}%)` }"
+          >
+            <!-- Insurance KPI Dashboard -->
+            <div class="slide">
+              <div class="dashboard-page">
+                
+                <!-- KPI Cards -->
+                <div class="kpi-grid">
+                  <div class="kpi-card">
+                    <div class="kpi-icon">📋</div>
+                    <div class="kpi-content">
+                      <div class="kpi-value">15,847</div>
+                      <div class="kpi-label">총 보험계약</div>
+                      <div class="kpi-change positive">+8.2%</div>
+                    </div>
+                  </div>
+                  <div class="kpi-card">
+                    <div class="kpi-icon">💼</div>
+                    <div class="kpi-content">
+                      <div class="kpi-value">₩124.5억</div>
+                      <div class="kpi-label">보험료 수입</div>
+                      <div class="kpi-change positive">+12.3%</div>
+                    </div>
+                  </div>
+                  <div class="kpi-card">
+                    <div class="kpi-icon">⚡</div>
+                    <div class="kpi-content">
+                      <div class="kpi-value">2.1일</div>
+                      <div class="kpi-label">평균 심사기간</div>
+                      <div class="kpi-change positive">-0.3일</div>
+                    </div>
+                  </div>
+                  <div class="kpi-card">
+                    <div class="kpi-icon">🎯</div>
+                    <div class="kpi-content">
+                      <div class="kpi-value">94.2%</div>
+                      <div class="kpi-label">고객 만족도</div>
+                      <div class="kpi-change positive">+1.8%</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Charts -->
+                <div class="charts-grid">
+                  <div class="chart-card large">
+                    <div class="chart-header">
+                      <h4>월별 보험료 수입 추이</h4>
+                    </div>
+                    <div class="chart-container">
+                      <canvas ref="salesChart"></canvas>
+                    </div>
+                  </div>
+                  
+                  <div class="chart-card">
+                    <div class="chart-header">
+                      <h4>보험 상품별 비율</h4>
+                    </div>
+                    <div class="chart-container">
+                      <canvas ref="productChart"></canvas>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div class="timeline-description">{{ activity.description }}</div>
-            <div class="timeline-meta">
-              <span class="timeline-user">{{ activity.user }}</span>
-              <span class="timeline-category">{{ activity.category }}</span>
+
+            <!-- Claim Summary Dashboard -->
+            <div class="slide">
+              <div class="dashboard-page">
+                
+                <!-- Claim Charts - Full Width Layout -->
+                <div class="claims-grid">
+                  <div class="chart-card">
+                    <div class="chart-header">
+                      <h4>월별 청구 건수 추이</h4>
+                    </div>
+                    <div class="chart-container">
+                      <canvas ref="claimTrendChart"></canvas>
+                    </div>
+                  </div>
+                  
+                  <div class="chart-card">
+                    <div class="chart-header">
+                      <h4>청구 유형별 분포</h4>
+                    </div>
+                    <div class="chart-container">
+                      <canvas ref="claimTypeChart"></canvas>
+                    </div>
+                  </div>
+                  
+                  <div class="chart-card">
+                    <div class="chart-header">
+                      <h4>청구 상태별 현황</h4>
+                    </div>
+                    <div class="chart-container">
+                      <canvas ref="claimStatusChart"></canvas>
+                    </div>
+                  </div>
+                  
+                  <div class="chart-card">
+                    <div class="chart-header">
+                      <h4>평균 처리 시간</h4>
+                    </div>
+                    <div class="chart-container">
+                      <canvas ref="processingTimeChart"></canvas>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
+        
+        <button 
+          class="slider-btn next" 
+          @click="nextSlide"
+          :disabled="currentSlide === dashboards.length - 1"
+        >
+          <IconSystem name="chevron-right" :size="24" />
+        </button>
+      </div>
+      
+      <!-- Slide Indicators -->
+      <div class="slide-indicators">
+        <button 
+          v-for="(dashboard, index) in dashboards" 
+          :key="index"
+          class="indicator" 
+          :class="{ active: currentSlide === index }"
+          @click="goToSlide(index)"
+        >
+          <span class="indicator-label">{{ dashboard.title }}</span>
+        </button>
       </div>
     </section>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, onMounted, nextTick, watch } from 'vue'
+import IconSystem from './IconSystem.vue'
 
-const selectedPeriod = ref('today')
-const selectedChartPeriod = ref('week')
-const isRefreshing = ref(false)
+// Reactive state
+const currentSlide = ref(0)
 
-const keyMetrics = [
+// Chart refs
+const salesChart = ref(null)
+const productChart = ref(null)
+const claimTrendChart = ref(null)
+const claimTypeChart = ref(null)
+const claimStatusChart = ref(null)
+const processingTimeChart = ref(null)
+
+// Chart instances
+let salesChartInstance = null
+let productChartInstance = null
+let claimTrendChartInstance = null
+let claimTypeChartInstance = null
+let claimStatusChartInstance = null
+let processingTimeChartInstance = null
+
+// Dashboard data
+const dashboards = [
   {
-    id: 1,
-    icon: '📊',
-    label: '총 쿼리 수',
-    value: '24,891',
-    change: '+12.5%',
-    trend: 'up',
-    progress: 75
+    title: 'Insurance KPI',
+    description: '보험사 핵심 성과 지표'
   },
   {
-    id: 2,
-    icon: '⚡',
-    label: '평균 응답시간',
-    value: '1.2초',
-    change: '-8.3%',
-    trend: 'up',
-    progress: 85
-  },
-  {
-    id: 3,
-    icon: '👥',
-    label: '활성 사용자',
-    value: '1,247',
-    change: '+5.7%',
-    trend: 'up',
-    progress: 60
-  },
-  {
-    id: 4,
-    icon: '💾',
-    label: '데이터 처리량',
-    value: '2.4TB',
-    change: '-2.1%',
-    trend: 'down',
-    progress: 90
+    title: 'Claim Summary',
+    description: '보험 청구 현황 분석'
   }
 ]
 
-const chartPeriods = [
-  { label: '일', value: 'day' },
-  { label: '주', value: 'week' },
-  { label: '월', value: 'month' }
-]
-
-const chartData = [
-  { height: 60 },
-  { height: 80 },
-  { height: 45 },
-  { height: 90 },
-  { height: 70 },
-  { height: 85 },
-  { height: 95 }
-]
-
-const chartLabels = ['월', '화', '수', '목', '금', '토', '일']
-
-const topQueries = [
-  {
-    id: 1,
-    text: 'SELECT * FROM users WHERE status = "active"',
-    user: '김데이터',
-    time: '5분 전',
-    count: '247회',
-    trend: 'up'
-  },
-  {
-    id: 2,
-    text: 'SELECT COUNT(*) FROM orders WHERE date > "2024-01-01"',
-    user: '이분석',
-    time: '12분 전',
-    count: '189회',
-    trend: 'up'
-  },
-  {
-    id: 3,
-    text: 'SELECT * FROM products ORDER BY price DESC',
-    user: '박쿼리',
-    time: '18분 전',
-    count: '156회',
-    trend: 'down'
+// Methods
+const nextSlide = () => {
+  if (currentSlide.value < dashboards.length - 1) {
+    currentSlide.value++
   }
-]
-
-const systemStatus = [
-  {
-    name: 'Database Server',
-    status: 'healthy',
-    uptime: '99.9%',
-    responseTime: '12'
-  },
-  {
-    name: 'API Gateway',
-    status: 'healthy',
-    uptime: '99.8%',
-    responseTime: '8'
-  },
-  {
-    name: 'Cache Server',
-    status: 'warning',
-    uptime: '98.5%',
-    responseTime: '25'
-  },
-  {
-    name: 'File Storage',
-    status: 'healthy',
-    uptime: '99.9%',
-    responseTime: '15'
-  }
-]
-
-const recentActivities = [
-  {
-    id: 1,
-    type: 'query',
-    title: '대용량 쿼리 실행 완료',
-    description: '월별 매출 분석 쿼리가 성공적으로 실행되었습니다.',
-    user: '김분석',
-    category: '쿼리',
-    time: '2분 전'
-  },
-  {
-    id: 2,
-    type: 'system',
-    title: '시스템 업데이트',
-    description: '데이터베이스 인덱스 최적화가 완료되었습니다.',
-    user: '시스템',
-    category: '시스템',
-    time: '15분 전'
-  },
-  {
-    id: 3,
-    type: 'user',
-    title: '새 사용자 등록',
-    description: '박데이터님이 플랫폼에 가입했습니다.',
-    user: '박데이터',
-    category: '사용자',
-    time: '1시간 전'
-  }
-]
-
-const refreshData = async () => {
-  isRefreshing.value = true
-  setTimeout(() => {
-    isRefreshing.value = false
-  }, 1000)
 }
-</script>
 
-<style scoped>
+const previousSlide = () => {
+  if (currentSlide.value > 0) {
+    currentSlide.value--
+  }
+}
+
+const goToSlide = (index) => {
+  currentSlide.value = index
+}
+
+const refreshData = () => {
+  console.log('데이터 새로고침')
+  initializeCharts()
+}
+
+const initializeCharts = async () => {
+  try {
+    // Dynamic import Chart.js
+    const { Chart, registerables } = await import('chart.js')
+    Chart.register(...registerables)
+
+    // Destroy existing charts
+    if (salesChartInstance) {
+      salesChartInstance.destroy()
+      salesChartInstance = null
+    }
+    if (productChartInstance) {
+      productChartInstance.destroy()
+      productChartInstance = null
+    }
+    if (claimTrendChartInstance) {
+      claimTrendChartInstance.destroy()
+      claimTrendChartInstance = null
+    }
+    if (claimTypeChartInstance) {
+      claimTypeChartInstance.destroy()
+      claimTypeChartInstance = null
+    }
+    if (claimStatusChartInstance) {
+      claimStatusChartInstance.destroy()
+      claimStatusChartInstance = null
+    }
+    if (processingTimeChartInstance) {
+      processingTimeChartInstance.destroy()
+      processingTimeChartInstance = null
+    }
+
+    // Wait for DOM update
+    await nextTick()
+
+    if (currentSlide.value === 0) {
+      // Sales Analytics Charts
+      if (salesChart.value) {
+        salesChartInstance = new Chart(salesChart.value, {
+          type: 'line',
+          data: {
+            labels: ['1월', '2월', '3월', '4월', '5월', '6월'],
+            datasets: [{
+              label: '보험료 수입 (억원)',
+              data: [98, 115, 124, 142, 138, 156],
+              borderColor: '#FF6B35',
+              backgroundColor: 'rgba(255, 107, 53, 0.1)',
+              tension: 0.4,
+              fill: true
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: false
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                grid: {
+                  color: 'rgba(0, 0, 0, 0.1)'
+                }
+              },
+              x: {
+                grid: {
+                  display: false
+                }
+              }
+            }
+          }
+        })
+      }
+
+      if (productChart.value) {
+        productChartInstance = new Chart(productChart.value, {
+          type: 'doughnut',
+          data: {
+            labels: ['생명보험', '건강보험', '자동차보험', '화재보험', '여행보험'],
+            datasets: [{
+              data: [42, 28, 18, 8, 4],
+              backgroundColor: [
+                '#FF6B35',
+                '#F7931E',
+                '#FFD23F',
+                '#06D6A0',
+                '#118AB2'
+              ]
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'bottom'
+              }
+            }
+          }
+        })
+      }
+    } else if (currentSlide.value === 1) {
+      // Claim Summary Charts
+      if (claimTrendChart.value) {
+        claimTrendChartInstance = new Chart(claimTrendChart.value, {
+          type: 'line',
+          data: {
+            labels: ['1월', '2월', '3월', '4월', '5월', '6월'],
+            datasets: [{
+              label: '청구 건수',
+              data: [1250, 1380, 1420, 1650, 1580, 1720],
+              borderColor: '#FF6B35',
+              backgroundColor: 'rgba(255, 107, 53, 0.1)',
+              tension: 0.4,
+              fill: true
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: false
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                grid: {
+                  color: 'rgba(0, 0, 0, 0.1)'
+                }
+              },
+              x: {
+                grid: {
+                  display: false
+                }
+              }
+            }
+          }
+        })
+      }
+
+      if (claimTypeChart.value) {
+        claimTypeChartInstance = new Chart(claimTypeChart.value, {
+          type: 'doughnut',
+          data: {
+            labels: ['의료비', '사고보상', '생명보험', '재산피해', '기타'],
+            datasets: [{
+              data: [45, 25, 15, 10, 5],
+              backgroundColor: [
+                '#FF6B35',
+                '#F7931E',
+                '#FFD23F',
+                '#06D6A0',
+                '#118AB2'
+              ]
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'bottom'
+              }
+            }
+          }
+        })
+      }
+
+      if (claimStatusChart.value) {
+        claimStatusChartInstance = new Chart(claimStatusChart.value, {
+          type: 'bar',
+          data: {
+            labels: ['접수', '심사중', '승인', '거절', '보류'],
+            datasets: [{
+              label: '건수',
+              data: [320, 180, 850, 45, 25],
+              backgroundColor: ['#FFD23F', '#F7931E', '#06D6A0', '#FF6B35', '#118AB2'],
+              borderRadius: 4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: false
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                grid: {
+                  color: 'rgba(0, 0, 0, 0.1)'
+                }
+              },
+              x: {
+                grid: {
+                  display: false
+                }
+              }
+            }
+          }
+        })
+      }
+
+      if (processingTimeChart.value) {
+        processingTimeChartInstance = new Chart(processingTimeChart.value, {
+          type: 'bar',
+          data: {
+            labels: ['의료비', '사고보상', '생명보험', '재산피해', '기타'],
+            datasets: [{
+              label: '처리시간 (일)',
+              data: [2.1, 4.5, 3.2, 5.8, 2.9],
+              backgroundColor: '#FF6B35',
+              borderRadius: 4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: false
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                grid: {
+                  color: 'rgba(0, 0, 0, 0.1)'
+                }
+              },
+              x: {
+                grid: {
+                  display: false
+                }
+              }
+            }
+          }
+        })
+      }
+    }
+  } catch (error) {
+    console.error('Chart initialization error:', error)
+  }
+}
+
+// Watch for slide changes
+watch(currentSlide, () => {
+  setTimeout(() => {
+    initializeCharts()
+  }, 100)
+})
+
+onMounted(() => {
+  setTimeout(() => {
+    initializeCharts()
+  }, 100)
+})
+</script><style
+ scoped>
 .dashboard-view {
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: var(--space-4);
+  height: 100vh;
+  padding: var(--space-4);
 }
 
 /* Header */
-.dashboard-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 24px;
-}
 
-.header-content {
-  flex: 1;
-}
-
-.page-title {
-  font-size: var(--fs-h2);
-  font-weight: 700;
-  margin: 0 0 8px 0;
-  color: var(--ink);
-}
-
-.page-subtitle {
-  color: var(--muted);
-  margin: 0;
-}
-
-.header-actions {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
-.period-select {
-  padding: 10px 16px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: var(--card);
-  cursor: pointer;
-  font-size: var(--fs-body);
+.slide-counter {
+  padding: var(--space-1) var(--space-3);
+  background: var(--surface-hover);
+  border-radius: var(--radius-md);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-primary);
 }
 
 .refresh-btn {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  background: var(--primary);
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--lina-orange);
   color: white;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   cursor: pointer;
   transition: var(--transition-fast);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
 }
 
 .refresh-btn:hover {
-  background: var(--primary-light);
+  background: var(--lina-yellow);
 }
 
-.refresh-icon {
-  transition: var(--transition);
+/* Dashboard Slider */
+.dashboard-slider {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  flex: 1;
 }
 
-.refresh-icon.spinning {
-  animation: spin 1s linear infinite;
-}
-
-/* Metrics */
-.metrics-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 20px;
-}
-
-.metric-card {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 24px;
-  box-shadow: var(--shadow-sm);
-  transition: var(--transition);
-  position: relative;
-  overflow: hidden;
-}
-
-.metric-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow);
-}
-
-.metric-card.up {
-  border-left: 4px solid var(--good);
-}
-
-.metric-card.down {
-  border-left: 4px solid var(--bad);
-}
-
-.metric-header {
+.slider-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  padding: var(--space-2) 0;
 }
 
-.metric-icon {
-  font-size: 32px;
+.dashboard-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.current-dashboard-title {
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.slider-actions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.slider-actions .action-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  font-weight: var(--fw-medium);
+  font-size: var(--fs-sm);
+}
+
+.slider-actions .action-btn:hover {
+  background: var(--surface-hover);
+  border-color: var(--lina-yellow);
+  color: var(--text-primary);
+}
+
+.slider-container {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  min-height: 0;
+}
+
+.slider-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  color: var(--text-secondary);
+  z-index: 20;
+  box-shadow: var(--shadow-md);
+}
+
+.slider-btn.prev {
+  left: var(--space-3);
+}
+
+.slider-btn.next {
+  right: var(--space-3);
+}
+
+.slider-btn:hover:not(:disabled) {
+  background: var(--lina-orange);
+  color: white;
+  border-color: var(--lina-orange);
+  transform: translateY(-50%) scale(1.1);
+}
+
+.slider-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.slider-content {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+}
+
+.slides-wrapper {
+  display: flex;
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slide {
+  width: 100%;
+  flex-shrink: 0;
+}
+
+/* Dashboard Page */
+.dashboard-page {
+  background: var(--surface);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  height: 100%;
+  overflow-y: auto;
+}
+
+.page-header {
+  margin-bottom: var(--space-6);
+  text-align: center;
+}
+
+.page-header .page-title {
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  margin: 0 0 var(--space-2) 0;
+}
+
+.page-header .page-subtitle {
+  font-size: var(--fs-base);
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* KPI Cards */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.kpi-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  background: var(--surface-hover);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  transition: var(--transition-fast);
+}
+
+.kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.kpi-icon {
+  font-size: 2rem;
   width: 48px;
   height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: color-mix(in oklab, var(--primary) 10%, white);
-  border-radius: 12px;
+  background: var(--lina-orange);
+  border-radius: var(--radius-lg);
+  flex-shrink: 0;
 }
 
-.metric-change {
-  font-size: var(--fs-small);
-  font-weight: 600;
-  padding: 4px 8px;
-  border-radius: 8px;
+.kpi-content {
+  flex: 1;
 }
 
-.metric-change.up {
-  color: var(--good);
-  background: color-mix(in oklab, var(--good) 15%, white);
+.kpi-value {
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  margin: 0 0 var(--space-1) 0;
 }
 
-.metric-change.down {
-  color: var(--bad);
-  background: color-mix(in oklab, var(--bad) 15%, white);
+.kpi-label {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-1) 0;
 }
 
-.metric-content {
-  margin-bottom: 16px;
+.kpi-change {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
 }
 
-.metric-value {
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--ink);
-  margin-bottom: 4px;
+.kpi-change.positive {
+  color: var(--success);
 }
 
-.metric-label {
-  color: var(--muted);
-  font-size: var(--fs-small);
-}
-
-.metric-chart {
-  height: 4px;
-  background: var(--line);
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.mini-chart {
-  height: 100%;
-  background: linear-gradient(90deg, var(--primary), var(--secondary));
-  width: var(--progress);
-  border-radius: 2px;
-  transition: width 1s ease;
+.kpi-change.negative {
+  color: var(--error);
 }
 
 /* Charts */
 .charts-grid {
   display: grid;
-  grid-template-columns: repeat(12, 1fr);
-  gap: 20px;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--space-4);
+  flex: 1;
+}
+
+.claims-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+  flex: 1;
 }
 
 .chart-card {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 24px;
+  background: var(--surface-hover);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
   box-shadow: var(--shadow-sm);
-  grid-column: span 6;
+  display: flex;
+  flex-direction: column;
 }
 
 .chart-card.large {
-  grid-column: span 8;
+  grid-column: span 1;
 }
 
 .chart-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.chart-title {
-  font-size: 18px;
-  font-weight: 600;
-  margin: 0;
-  color: var(--ink);
-}
-
-.chart-controls {
-  display: flex;
-  gap: 4px;
-}
-
-.chart-btn {
-  padding: 6px 12px;
-  border: 1px solid var(--line);
-  background: white;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: var(--transition-fast);
-  font-size: var(--fs-small);
-}
-
-.chart-btn.active {
-  background: var(--primary);
-  color: white;
-  border-color: var(--primary);
-}
-
-.view-all-link {
-  background: none;
-  border: none;
-  color: var(--primary);
-  cursor: pointer;
-  font-size: var(--fs-small);
-}
-
-/* Chart Placeholder */
-.chart-container {
-  height: 200px;
-}
-
-.chart-placeholder {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-}
-
-.chart-bars {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  height: 160px;
-  margin-bottom: 12px;
-}
-
-.chart-bar {
-  flex: 1;
-  background: linear-gradient(180deg, var(--primary), var(--secondary));
-  border-radius: 4px 4px 0 0;
-  animation: growUp 0.8s ease var(--delay) both;
-}
-
-@keyframes growUp {
-  from { height: 0; }
-  to { height: var(--height); }
-}
-
-.chart-labels {
-  display: flex;
-  justify-content: space-between;
-  font-size: var(--fs-small);
-  color: var(--muted);
-}
-
-/* Activity Stats */
-.activity-stats {
-  margin-bottom: 20px;
-}
-
-.activity-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 0;
-}
-
-.activity-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-}
-
-.activity-dot.active {
-  background: var(--good);
-}
-
-.activity-dot.idle {
-  background: var(--accent-yellow);
-}
-
-.activity-dot.offline {
-  background: var(--muted);
-}
-
-.activity-info {
-  flex: 1;
-  display: flex;
-  justify-content: space-between;
-}
-
-.activity-label {
-  color: var(--muted);
-  font-size: var(--fs-small);
-}
-
-.activity-value {
-  font-weight: 600;
-  color: var(--ink);
-}
-
-/* Donut Chart */
-.donut-chart {
-  position: relative;
-  width: 120px;
-  height: 120px;
-  margin: 0 auto;
-  background: conic-gradient(
-    var(--good) 0deg 200deg,
-    var(--accent-yellow) 200deg 240deg,
-    var(--muted) 240deg 360deg
-  );
-  border-radius: 50%;
-}
-
-.donut-center {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 80px;
-  height: 80px;
-  background: var(--card);
-  border-radius: 50%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-.donut-value {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--ink);
-}
-
-.donut-label {
-  font-size: var(--fs-xs);
-  color: var(--muted);
-}
-
-/* Query List */
-.query-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.query-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  background: var(--card-hover);
-  border-radius: var(--radius-sm);
-}
-
-.query-content {
-  flex: 1;
-}
-
-.query-text {
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: var(--fs-small);
-  color: var(--ink);
-  margin-bottom: 4px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.query-meta {
-  display: flex;
-  gap: 8px;
-  font-size: var(--fs-xs);
-  color: var(--muted);
-}
-
-.query-stats {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.query-count {
-  font-weight: 600;
-  color: var(--ink);
-  font-size: var(--fs-small);
-}
-
-.query-trend {
-  font-size: 16px;
-}
-
-/* System Status */
-.status-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.status-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  background: var(--card-hover);
-  border-radius: var(--radius-sm);
-}
-
-.status-indicator {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-}
-
-.status-indicator.healthy {
-  background: var(--good);
-}
-
-.status-indicator.warning {
-  background: var(--accent-yellow);
-}
-
-.status-indicator.error {
-  background: var(--bad);
-}
-
-.status-content {
-  flex: 1;
-}
-
-.status-name {
-  font-weight: 600;
-  color: var(--ink);
-  margin-bottom: 2px;
-}
-
-.status-info {
-  display: flex;
-  gap: 12px;
-  font-size: var(--fs-small);
-  color: var(--muted);
-}
-
-.status-btn {
-  padding: 4px 8px;
-  border: 1px solid var(--line);
-  background: white;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: var(--fs-xs);
-}
-
-/* Activity Timeline */
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.section-title {
-  font-size: var(--fs-h3);
-  font-weight: 700;
-  margin: 0;
-  color: var(--ink);
-}
-
-.view-all-btn {
-  background: none;
-  border: 1px solid var(--line);
-  color: var(--muted);
-  padding: 8px 16px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: var(--transition-fast);
-}
-
-.view-all-btn:hover {
-  border-color: var(--primary);
-  color: var(--primary);
-}
-
-.activity-timeline {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 24px;
-  box-shadow: var(--shadow-sm);
-}
-
-.timeline-item {
-  display: flex;
-  gap: 16px;
-  padding: 16px 0;
-  border-bottom: 1px solid var(--line);
-}
-
-.timeline-item:last-child {
-  border-bottom: none;
-}
-
-.timeline-marker {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  margin-top: 6px;
+  margin-bottom: var(--space-4);
   flex-shrink: 0;
 }
 
-.timeline-marker.query {
-  background: var(--primary);
+.chart-header h4 {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+  margin: 0;
 }
 
-.timeline-marker.system {
-  background: var(--accent-yellow);
-}
-
-.timeline-marker.user {
-  background: var(--good);
-}
-
-.timeline-content {
+.chart-container {
+  position: relative;
   flex: 1;
+  min-height: 350px;
 }
 
-.timeline-header {
+/* Slide Indicators */
+.slide-indicators {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 4px;
+  justify-content: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  padding: var(--space-2) 0;
 }
 
-.timeline-title {
-  font-weight: 600;
-  color: var(--ink);
+.indicator {
+  padding: var(--space-1) var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
 }
 
-.timeline-time {
-  font-size: var(--fs-small);
-  color: var(--muted);
+.indicator:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
 }
 
-.timeline-description {
-  color: var(--muted);
-  margin-bottom: 8px;
-  line-height: 1.4;
+.indicator.active {
+  background: var(--lina-orange);
+  color: white;
+  border-color: var(--lina-orange);
 }
 
-.timeline-meta {
-  display: flex;
-  gap: 12px;
-  font-size: var(--fs-small);
-  color: var(--muted);
+.indicator-label {
+  font-weight: var(--fw-medium);
 }
 
-@media (max-width: 1024px) {
+/* Responsive */
+@media (max-width: 1200px) {
   .charts-grid {
     grid-template-columns: 1fr;
   }
   
-  .chart-card,
   .chart-card.large {
     grid-column: span 1;
   }
 }
 
 @media (max-width: 768px) {
-  .dashboard-header {
+  .dashboard-view {
+    padding: var(--space-3);
+  }
+
+  .slider-header {
     flex-direction: column;
     align-items: flex-start;
+    gap: var(--space-3);
   }
   
-  .metrics-grid {
-    grid-template-columns: 1fr;
+  .dashboard-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
   }
-  
+    align-items: flex-start;
+    gap: var(--space-3);
+  }
+
   .header-actions {
     width: 100%;
     justify-content: space-between;
+  }
+
+  .dashboard-slider {
+    height: calc(100vh - 180px);
+  }
+
+  .slider-btn {
+    width: 32px;
+    height: 32px;
+  }
+
+  .slider-btn.prev {
+    left: var(--space-2);
+  }
+
+  .slider-btn.next {
+    right: var(--space-2);
+  }
+
+  .dashboard-page {
+    padding: var(--space-4);
+  }
+
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-3);
+  }
+
+  .kpi-card {
+    padding: var(--space-3);
+  }
+
+  .chart-container {
+    min-height: 280px;
+  }
+
+  .slide-indicators {
+    gap: var(--space-1);
+  }
+
+  .indicator {
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--fs-xs);
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-view {
+    padding: var(--space-2);
+  }
+
+  .dashboard-page {
+    padding: var(--space-3);
+  }
+
+  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .kpi-card {
+    flex-direction: column;
+    text-align: center;
+    gap: var(--space-2);
+  }
+
+  .chart-container {
+    min-height: 250px;
+  }
+
+  .slide-indicators {
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  .indicator {
+    width: 100%;
+    max-width: 200px;
+    text-align: center;
   }
 }
 </style>

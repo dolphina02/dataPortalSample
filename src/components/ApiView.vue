@@ -1,8 +1,22 @@
 <template>
   <div class="api-view">
-    <div class="api-header">
-      <h2 class="page-title">API Explorer</h2>
-      <p class="page-subtitle">REST API를 탐색하고 테스트해보세요</p>
+    <div class="page-header">
+      <div class="header-content">
+        <div class="header-info">
+          <h1 class="page-title">API Explorer</h1>
+          <p class="page-subtitle">REST API를 탐색하고 테스트해보세요</p>
+        </div>
+        <div class="header-actions">
+          <button class="action-btn">
+            <IconSystem name="book" :size="16" />
+            문서
+          </button>
+          <button class="action-btn primary">
+            <IconSystem name="play" :size="16" />
+            테스트
+          </button>
+        </div>
+      </div>
     </div>
 
     <div class="api-workspace">
@@ -515,25 +529,12 @@ const formatJson = (obj) => {
 .api-view {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  height: calc(100vh - 120px);
+  padding: var(--space-4);
+  gap: var(--space-4);
+  height: 100vh;
 }
 
-.api-header {
-  text-align: center;
-}
 
-.page-title {
-  font-size: var(--fs-h2);
-  font-weight: 700;
-  margin: 0 0 8px 0;
-  color: var(--ink);
-}
-
-.page-subtitle {
-  color: var(--muted);
-  margin: 0;
-}
 
 .api-workspace {
   display: grid;
