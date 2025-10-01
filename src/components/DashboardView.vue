@@ -900,7 +900,6 @@ onMounted(() => {
     padding: var(--space-1) var(--space-2);
     font-size: var(--fs-xs);
   }
-}
 
 @media (max-width: 480px) {
   .dashboard-view {
