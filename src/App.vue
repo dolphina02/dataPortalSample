@@ -193,6 +193,7 @@ import DashboardStoreView from './components/DashboardStoreView.vue'
 import ApiView from './components/ApiView.vue'
 import ChubbDataView from './components/ChubbDataView.vue'
 import DataCatalogView from './components/DataCatalogView.vue'
+import InsightView from './components/InsightView.vue'
 
 // Reactive state
 const sidebarCollapsed = ref(false)
@@ -217,6 +218,7 @@ const analysisMenuItems = [
 ]
 
 const managementMenuItems = [
+  { id: 'insight', icon: 'trending-up', label: 'Producer360', launch: '26년 1Q' },
   { id: 'data-catalog', icon: 'book-open', label: 'Data Catalog', launch: '26년 1Q' },
   { id: 'model-management', icon: 'box', label: '모델 관리', launch: '26년 2Q' },
   { id: 'api', icon: 'api', label: 'API Explorer', launch: '26년 3Q' }
@@ -233,6 +235,7 @@ const viewComponents = {
   dashboard: DashboardView,
   'dashboard-store': DashboardStoreView,
   api: ApiView,
+  insight: InsightView,
   'data-catalog': DataCatalogView,
   'chubb-data': ChubbDataView
 }
