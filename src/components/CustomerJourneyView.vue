@@ -19,8 +19,24 @@
 
     <!-- Customer Info Card -->
     <div class="customer-info-card">
-      <div class="customer-avatar">
-        <IconSystem name="user" :size="32" />
+      <div class="customer-avatar-container">
+        <div class="customer-avatar-grid">
+          <div class="avatar-quadrant top-left">
+            <div class="quadrant-value">{{ currentCustomer?.gender }}</div>
+          </div>
+          <div class="avatar-quadrant top-right">
+            <div class="quadrant-value">{{ currentCustomer?.age }}</div>
+          </div>
+          <div class="avatar-quadrant bottom-left">
+            <div class="quadrant-value">{{ currentCustomer?.location }}</div>
+          </div>
+          <div class="avatar-quadrant bottom-right">
+            <div class="quadrant-value membership-period">
+              <span class="years">{{ currentCustomer?.membershipYears?.split('년')[0] }}년</span>
+              <span class="months">{{ currentCustomer?.membershipYears?.split('년')[1] }}</span>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="customer-details">
         <h3>{{ currentCustomer?.name }}</h3>
@@ -46,11 +62,13 @@
         </div>
         <div class="stat-box">
           <div class="stat-value">{{ formatCurrency(totalPremium) }}</div>
-          <div class="stat-label">납입 보험료</div>
+          <div class="stat-detail">(평균 {{ formatCurrency(averageMonthlyPremium) }}/월)</div>
+          <div class="stat-label">총 납입 보험료</div>
         </div>
         <div class="stat-box">
           <div class="stat-value">{{ formatCurrency(totalClaim) }}</div>
-          <div class="stat-label">청구 금액</div>
+          <div class="stat-detail">(평균 {{ formatCurrency(averageClaim) }}, {{ claimCount }}회)</div>
+          <div class="stat-label">총 청구 금액</div>
         </div>
         <div class="stat-box" :class="{ positive: claimRatio > 0 }">
           <div class="stat-value">{{ claimRatio }}%</div>
@@ -62,13 +80,27 @@
     <!-- Filter Controls -->
     <div class="filter-controls">
       <div class="filter-group">
+        <span class="filter-group-label">레인:</span>
         <button 
-          class="filter-btn" 
-          :class="{ active: hidePayments }"
-          @click="hidePayments = !hidePayments"
+          class="filter-btn lane-filter" 
+          :class="{ active: !hideLanes.income }"
+          @click="hideLanes.income = !hideLanes.income"
         >
-          <IconSystem name="credit-card" :size="16" />
-          {{ hidePayments ? '보험료 납입 표시' : '보험료 납입 숨김' }}
+          Income
+        </button>
+        <button 
+          class="filter-btn lane-filter" 
+          :class="{ active: !hideLanes.communication }"
+          @click="hideLanes.communication = !hideLanes.communication"
+        >
+          Contact
+        </button>
+        <button 
+          class="filter-btn lane-filter" 
+          :class="{ active: !hideLanes.outcome }"
+          @click="hideLanes.outcome = !hideLanes.outcome"
+        >
+          Outcome
         </button>
       </div>
 
@@ -119,16 +151,21 @@
           >
           </div>
           
-          <!-- Main Timeline -->
-          <div class="timeline-line main-line"></div>
+          <!-- Timeline Lines with Labels -->
+          <div v-if="!hideLanes.income" class="timeline-line income-line">
+            <div class="lane-label-inline">Income</div>
+          </div>
+          <div v-if="!hideLanes.communication" class="timeline-line communication-line">
+            <div class="lane-label-inline">Contact</div>
+          </div>
+          <div v-if="!hideLanes.outcome" class="timeline-line outcome-line">
+            <div class="lane-label-inline">Outcome</div>
+          </div>
           
-          <!-- Payment Area Background -->
-          <div v-if="!hidePayments" class="payment-area-background"></div>
-          <div v-if="!hidePayments" class="payment-area-label">보험료 납입</div>
-          
-          <!-- Payment Branch Line -->
-          <div v-if="contractPosition && !hidePayments" class="timeline-line payment-branch" :style="{ left: contractPosition + 'px' }"></div>
-          <div v-if="contractPosition && !hidePayments" class="branch-connector" :style="{ left: contractPosition + 'px' }"></div>
+          <!-- Lane Backgrounds -->
+          <div v-if="!hideLanes.income" class="lane-background income-background"></div>
+          <div v-if="!hideLanes.communication" class="lane-background communication-background"></div>
+          <div v-if="!hideLanes.outcome" class="lane-background outcome-background"></div>
           
           <!-- Year Markers -->
           <div 
@@ -177,7 +214,7 @@
             class="timeline-event"
             :class="[
               { active: selectedEvent?.id === event.id },
-              event.type === 'payment' ? 'payment-lane' : 'main-lane'
+              getEventLane(event.type)
             ]"
             :style="{ 
               left: getEventPosition(event, index) + 'px',
@@ -272,7 +309,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import IconSystem from './IconSystem.vue'
 
 // Reactive state
@@ -280,7 +317,11 @@ const selectedCustomer = ref('cust_001')
 const selectedEvent = ref(null)
 const timelineContainer = ref(null)
 const latestEventRef = ref(null)
-const hidePayments = ref(false)
+const hideLanes = ref({
+  income: false,
+  communication: false,
+  outcome: false
+})
 const hoveredEvent = ref(null)
 const tooltipStyle = ref({})
 const zoomLevel = ref(100)
@@ -304,14 +345,22 @@ const customers = [
     name: '김철수', 
     policyNumber: 'POL-2015-001234',
     joinDate: '2015-03-15',
-    productType: '종합보험'
+    productType: '종합보험',
+    gender: '남성',
+    age: '60대',
+    location: '서울시',
+    membershipYears: '10년3개월'
   },
   { 
     id: 'cust_002', 
     name: '이영희', 
     policyNumber: 'POL-2022-005678',
     joinDate: '2022-08-20',
-    productType: '건강보험'
+    productType: '건강보험',
+    gender: '여성',
+    age: '40대',
+    location: '부산시',
+    membershipYears: '3년'
   }
 ]
 
@@ -799,10 +848,13 @@ const sortedEvents = computed(() => {
 })
 
 const displayedEvents = computed(() => {
-  if (hidePayments.value) {
-    return sortedEvents.value.filter(e => e.type !== 'payment')
-  }
-  return sortedEvents.value
+  return sortedEvents.value.filter(event => {
+    const lane = getEventLane(event.type)
+    if (lane === 'income-lane' && hideLanes.value.income) return false
+    if (lane === 'communication-lane' && hideLanes.value.communication) return false
+    if (lane === 'outcome-lane' && hideLanes.value.outcome) return false
+    return true
+  })
 })
 
 const totalPremium = computed(() => {
@@ -826,6 +878,21 @@ const totalClaim = computed(() => {
 const claimRatio = computed(() => {
   if (totalPremium.value === 0) return 0
   return Math.round((totalClaim.value / totalPremium.value) * 100)
+})
+
+const claimCount = computed(() => {
+  return allEvents.value.filter(e => e.type === 'claim' && e.status === 'completed').length
+})
+
+const averageClaim = computed(() => {
+  if (claimCount.value === 0) return 0
+  return Math.round(totalClaim.value / claimCount.value)
+})
+
+const averageMonthlyPremium = computed(() => {
+  const paymentCount = allEvents.value.filter(e => e.type === 'payment').length
+  if (paymentCount === 0) return 0
+  return Math.round(totalPremium.value / paymentCount)
 })
 
 const contractPosition = computed(() => {
@@ -857,8 +924,8 @@ const inactiveGaps = computed(() => {
       const startPercentage = totalDays > 0 ? startDays / totalDays : 0
       const endPercentage = totalDays > 0 ? endDays / totalDays : 0
       
-      const startPos = 25 + (startPercentage * timelineWidth.value)
-      const endPos = 25 + (endPercentage * timelineWidth.value)
+      const startPos = 120 + (startPercentage * timelineWidth.value)
+      const endPos = 120 + (endPercentage * timelineWidth.value)
       
       gaps.push({
         start: startPos,
@@ -871,10 +938,29 @@ const inactiveGaps = computed(() => {
   return gaps
 })
 
-const baseTimelineWidth = 1200 // 기본 타임라인 너비 (px)
+const baseTimelineWidth = ref(1200) // 기본 타임라인 너비 (px)
 
 const timelineWidth = computed(() => {
-  return baseTimelineWidth * (zoomLevel.value / 100)
+  return baseTimelineWidth.value * (zoomLevel.value / 100)
+})
+
+// 컨테이너 크기에 맞춰 타임라인 너비 조정
+const updateTimelineWidth = () => {
+  if (timelineContainer.value) {
+    const containerWidth = timelineContainer.value.clientWidth
+    // 컨테이너 너비에서 여백을 뺀 값을 기본 너비로 설정
+    baseTimelineWidth.value = Math.max(1200, containerWidth - 200)
+  }
+}
+
+onMounted(() => {
+  updateTimelineWidth()
+  window.addEventListener('resize', updateTimelineWidth)
+  scrollToLatest()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateTimelineWidth)
 })
 
 const yearMarkers = computed(() => {
@@ -912,7 +998,7 @@ const yearMarkers = computed(() => {
         // 첫 년도는 0% 위치
         markers.push({
           year,
-          position: 25
+          position: 120
         })
       } else if (year >= recentStartYear) {
         // 최근 3년은 25% ~ 100% 사이에 배치
@@ -922,7 +1008,7 @@ const yearMarkers = computed(() => {
         const percentage = totalRecentYears > 1 ? yearIndex / (totalRecentYears - 1) : 0
         markers.push({
           year,
-          position: 25 + (timelineWidth.value * 0.25) + (percentage * timelineWidth.value * 0.75)
+          position: 120 + (timelineWidth.value * 0.25) + (percentage * timelineWidth.value * 0.75)
         })
       }
     })
@@ -940,7 +1026,7 @@ const yearMarkers = computed(() => {
       
       markers.push({
         year,
-        position: 25 + (percentage * timelineWidth.value)
+        position: 120 + (percentage * timelineWidth.value)
       })
     })
   }
@@ -983,7 +1069,7 @@ const yearSections = computed(() => {
         // 첫 년도: 0% ~ 25%
         sections.push({
           year,
-          start: 25,
+          start: 120,
           width: timelineWidth.value * 0.25
         })
       } else if (year >= recentStartYear) {
@@ -992,7 +1078,7 @@ const yearSections = computed(() => {
         const yearIndex = recentYears.indexOf(year)
         const totalRecentYears = recentYears.length
         const sectionWidth = (timelineWidth.value * 0.75) / totalRecentYears
-        const startPos = 25 + (timelineWidth.value * 0.25) + (yearIndex * sectionWidth)
+        const startPos = 120 + (timelineWidth.value * 0.25) + (yearIndex * sectionWidth)
         
         sections.push({
           year,
@@ -1020,8 +1106,8 @@ const yearSections = computed(() => {
       const startPercentage = totalDays > 0 ? startDays / totalDays : 0
       const endPercentage = totalDays > 0 ? endDays / totalDays : 1
       
-      const startPos = 25 + (startPercentage * timelineWidth.value)
-      const endPos = 25 + (endPercentage * timelineWidth.value)
+      const startPos = 120 + (startPercentage * timelineWidth.value)
+      const endPos = 120 + (endPercentage * timelineWidth.value)
       
       sections.push({
         year,
@@ -1062,13 +1148,13 @@ const getEventPosition = (event, index) => {
       const firstYearDays = (firstYearEnd - firstDate) / (1000 * 60 * 60 * 24)
       const eventDaysInFirstYear = (eventDate - firstDate) / (1000 * 60 * 60 * 24)
       const percentageInFirstYear = firstYearDays > 0 ? eventDaysInFirstYear / firstYearDays : 0
-      return 25 + (percentageInFirstYear * timelineWidth.value * 0.25)
+      return 120 + (percentageInFirstYear * timelineWidth.value * 0.25)
     } else if (eventDate >= threeYearsAgo) {
       // 최근 3년: 전체의 3/4 (75%)
       const recentThreeYearsDays = (lastDate - threeYearsAgo) / (1000 * 60 * 60 * 24)
       const eventDaysInRecent = (eventDate - threeYearsAgo) / (1000 * 60 * 60 * 24)
       const percentageInRecent = recentThreeYearsDays > 0 ? eventDaysInRecent / recentThreeYearsDays : 0
-      return 25 + (timelineWidth.value * 0.25) + (percentageInRecent * timelineWidth.value * 0.75)
+      return 120 + (timelineWidth.value * 0.25) + (percentageInRecent * timelineWidth.value * 0.75)
     }
     // 중간 기간은 표시 안됨
     return 25
@@ -1081,7 +1167,7 @@ const getEventPosition = (event, index) => {
   const eventDays = (eventDate - firstDate2) / (1000 * 60 * 60 * 24)
   
   const percentage = totalDays > 0 ? eventDays / totalDays : 0
-  return 25 + (percentage * timelineWidth.value)
+  return 120 + (percentage * timelineWidth.value)
 }
 
 const getEventTypeCount = (type) => {
@@ -1097,6 +1183,20 @@ const formatCurrency = (amount) => {
     return `${(amount / 10000).toFixed(0)}만원`
   }
   return `${amount.toLocaleString()}원`
+}
+
+const getEventLane = (type) => {
+  // Income: 가입, 업셀, 보험료 납입
+  const incomeTypes = ['contract', 'upsell', 'payment']
+  // Outcome: 청구, 반환, 해약
+  const outcomeTypes = ['claim', 'cancellation', 'rejection', 'termination']
+  // Communication: 전화, 웹, 이메일, 마케팅
+  const communicationTypes = ['contact', 'web', 'email']
+  
+  if (incomeTypes.includes(type)) return 'income-lane'
+  if (outcomeTypes.includes(type)) return 'outcome-lane'
+  if (communicationTypes.includes(type)) return 'communication-lane'
+  return 'communication-lane' // 기본값
 }
 
 const getEventIcon = (type) => {
@@ -1208,16 +1308,13 @@ const scrollToLatest = () => {
   })
 }
 
-onMounted(() => {
-  scrollToLatest()
-})
 </script>
 
 
 <style scoped>
 .customer-journey-view {
   padding: var(--space-6);
-  max-width: 1400px;
+  max-width: 1800px;
   margin: 0 auto;
 }
 
@@ -1273,16 +1370,69 @@ onMounted(() => {
   margin-bottom: var(--space-6);
 }
 
-.customer-avatar {
-  width: 64px;
-  height: 64px;
-  border-radius: var(--radius-full);
-  background: linear-gradient(135deg, var(--lina-orange), var(--lina-yellow));
+.customer-avatar-container {
+  flex-shrink: 0;
+}
+
+.customer-avatar-grid {
+  width: 120px;
+  height: 120px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 2px;
+  background: var(--border-primary);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.avatar-quadrant {
+  background: var(--surface-hover);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  padding: var(--space-2);
+}
+
+.avatar-quadrant.top-left {
+  background: linear-gradient(135deg, #3b82f6, #60a5fa);
+}
+
+.avatar-quadrant.top-right {
+  background: linear-gradient(135deg, #10b981, #34d399);
+}
+
+.avatar-quadrant.bottom-left {
+  background: linear-gradient(135deg, #f59e0b, #fbbf24);
+}
+
+.avatar-quadrant.bottom-right {
+  background: linear-gradient(135deg, #8b5cf6, #a78bfa);
+}
+
+.quadrant-value {
+  font-size: 14px;
+  font-weight: var(--fw-bold);
   color: white;
-  flex-shrink: 0;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.quadrant-value.membership-period {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.quadrant-value .years {
+  font-size: 14px;
+  font-weight: var(--fw-bold);
+}
+
+.quadrant-value .months {
+  font-size: 11px;
+  font-weight: var(--fw-semibold);
 }
 
 .customer-details {
@@ -1327,11 +1477,18 @@ onMounted(() => {
   font-size: var(--fs-2xl);
   font-weight: var(--fw-bold);
   color: var(--lina-orange);
+  margin-bottom: 2px;
+}
+
+.stat-detail {
+  font-size: 9px;
+  color: var(--text-tertiary);
   margin-bottom: var(--space-1);
 }
 
 .stat-label {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
   color: var(--text-secondary);
 }
 
@@ -1384,6 +1541,16 @@ onMounted(() => {
   background: var(--lina-orange);
   color: white;
   border-color: var(--lina-orange);
+}
+
+.filter-btn.lane-filter.active {
+  background: var(--lina-orange);
+  color: white;
+  border-color: var(--lina-orange);
+}
+
+.filter-btn.lane-filter:not(.active) {
+  opacity: 0.5;
 }
 
 /* Zoom Control */
@@ -1469,7 +1636,7 @@ onMounted(() => {
   position: relative;
   min-height: 280px;
   padding: 100px 0 var(--space-4) 0;
-  min-width: calc(50px + var(--timeline-width, 1200px));
+  min-width: calc(150px + var(--timeline-width, 1200px));
   transition: min-width 0.1s ease;
 }
 
@@ -1488,71 +1655,86 @@ onMounted(() => {
 
 .timeline-line {
   position: absolute;
+  left: 0;
+  width: calc(var(--timeline-width, 1200px) + 120px);
   height: 3px;
-  background: linear-gradient(to right, 
-    var(--lina-orange) 0%, 
-    var(--lina-yellow) 50%, 
-    var(--lina-orange) 100%);
   border-radius: 2px;
-  z-index: 0;
-}
-
-.timeline-line.main-line {
-  left: 25px;
-  width: var(--timeline-width, 1200px);
-  top: 80px; /* main-lane */
+  z-index: 2;
   transition: width 0.1s ease;
 }
 
-.timeline-line.payment-branch {
-  width: calc(25px + var(--timeline-width, 1200px) - var(--branch-start, 0px));
-  top: 170px; /* payment-lane */
-  background: linear-gradient(to right, 
-    #06d6a0 0%, 
-    #06d6a0 100%);
-  opacity: 0.6;
-  transition: width 0.1s ease;
+.timeline-line.income-line {
+  top: 55px;
+  background: linear-gradient(to right, #10b981 0%, #10b981 120px, #34d399 100%);
 }
 
-.branch-connector {
+.timeline-line.communication-line {
+  top: 115px;
+  background: linear-gradient(to right, #3b82f6 0%, #3b82f6 120px, #60a5fa 100%);
+}
+
+.timeline-line.outcome-line {
+  top: 175px;
+  background: linear-gradient(to right, #f59e0b 0%, #f59e0b 120px, #fbbf24 100%);
+}
+
+.lane-label-inline {
   position: absolute;
-  width: 2px;
-  height: 90px;
-  top: 80px;
-  background: linear-gradient(to bottom, 
-    var(--lina-orange) 0%, 
-    #06d6a0 100%);
-  z-index: 0;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  font-weight: var(--fw-bold);
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  z-index: 3;
 }
 
-/* Payment Area Background */
-.payment-area-background {
+.income-line .lane-label-inline {
+  color: #10b981;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.communication-line .lane-label-inline {
+  color: #3b82f6;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.outcome-line .lane-label-inline {
+  color: #f59e0b;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+/* Lane Backgrounds */
+.lane-background {
   position: absolute;
   left: 0;
   right: 0;
-  top: 140px;
-  height: 80px;
-  background: rgba(6, 214, 160, 0.08);
-  z-index: 1;
+  height: 50px;
+  z-index: 0;
   pointer-events: none;
 }
 
-.payment-area-label {
-  position: absolute;
-  left: 50%;
-  top: 180px;
-  transform: translateX(-50%);
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-semibold);
-  color: #06d6a0;
-  background: var(--surface);
-  padding: 4px 12px;
-  border-radius: var(--radius-sm);
-  border: 1px solid rgba(6, 214, 160, 0.3);
-  white-space: nowrap;
-  z-index: 1;
-  pointer-events: none;
+.lane-background.income-background {
+  top: 30px;
+  background: rgba(16, 185, 129, 0.05);
 }
+
+.lane-background.communication-background {
+  top: 90px;
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.lane-background.outcome-background {
+  top: 150px;
+  background: rgba(245, 158, 11, 0.05);
+}
+
+
 
 /* Inactive Gap Indicator */
 .inactive-gap {
@@ -1623,7 +1805,7 @@ onMounted(() => {
 
 .year-label {
   position: absolute;
-  top: 20px;
+  top: 3px;
   font-size: var(--fs-sm);
   font-weight: var(--fw-bold);
   color: var(--text-primary);
@@ -1646,22 +1828,23 @@ onMounted(() => {
   transform: translateX(-50%);
 }
 
-.timeline-event.main-lane {
-  top: 70px;
+.timeline-event.income-lane {
+  top: 50px;
 }
 
-.timeline-event.payment-lane {
-  top: 165px;
+.timeline-event.communication-lane {
+  top: 110px;
 }
 
-.timeline-event.payment-lane .event-point {
-  width: 10px;
-  height: 10px;
+.timeline-event.outcome-lane {
+  top: 170px;
 }
+
+
 
 .timeline-event.contract-fixed {
-  left: 25px !important;
-  top: 70px;
+  left: 120px !important;
+  top: 50px;
   z-index: 200;
 }
 
