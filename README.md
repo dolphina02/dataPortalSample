@@ -29,9 +29,11 @@ Data Portal은 데이터 분석 업무를 효율화하기 위한 통합 플랫�
 
 ### 🏪 **Dashboard Store**
 - **템플릿 갤러리**: 다양한 대시보드 템플릿 제공
+- **신규 대시보드 생성**: 새로운 대시보드 생성 버튼 (향후 페이지 연결)
 - **카테고리별 분류**: 업무 영역별 대시보드 템플릿
 - **원클릭 설치**: 간편한 대시보드 설치 및 커스터마이징
 - **미리보기 기능**: 설치 전 대시보드 미리보기
+- **평점 및 다운로드**: 사용자 평가와 인기도 표시
 
 ### 📋 **Data Report**
 - **PDF 뷰어**: 월간 리포트 및 분석 문서 온라인 뷰어
@@ -85,6 +87,18 @@ Data Portal은 데이터 분석 업무를 효율화하기 위한 통합 플랫�
 - **Feature Importance**: 모델 특성 중요도 시각화
 - **성능 메트릭**: 정확도, F1 스코어, 응답시간 표시
 - **모델 업로드**: 새 모델 등록 및 배포 기능
+
+### ✅ **승인관리**
+- **상신 탭**: 내가 요청한 승인 내역 관리
+  - 대시보드 배포 요청 (배포요청→검토→배포완료 3단계 진행상태)
+  - 민감정보 대시보드 구독 요청
+  - 데이터 접근 권한 요청
+- **승인 탭**: 승인 대기 중인 요청 처리
+  - 우선순위별 분류 (High/Medium/Low)
+  - 승인/거절 처리 및 의견 작성
+- **결재완료 탭**: 처리 완료된 승인 내역
+  - 날짜별 필터링
+  - 처리자 및 처리 의견 확인
 
 ### 🔌 **API Explorer**
 - **사이드바 네비게이션**: API 카테고리별 분류
@@ -161,8 +175,15 @@ src/
 │   ├── QueryView.vue             # SQL Editor
 │   ├── TextToSqlView.vue         # Text-to-SQL 도구
 │   ├── SttSearchView.vue         # STT 키워드 검색
+│   ├── ApprovalView.vue          # 승인관리 (상신/승인/결재완료)
 │   ├── ModelManagementView.vue   # 모델 관리
 │   ├── ApiView.vue               # API Explorer
+│   ├── InsightView.vue           # Producer360 (통합 인사이트)
+│   ├── DataCatalogView.vue       # 데이터 카탈로그
+│   ├── common/                   # 공통 컴포넌트
+│   │   ├── FoldSection.vue       # 접기/펼치기 섹션
+│   │   ├── ActionList.vue        # 액션 리스트
+│   │   └── ChartWrapper.vue      # 차트 래퍼
 │   └── IconSystem.vue            # 아이콘 시스템
 ├── style.css                     # 글로벌 스타일 (표준 헤더 포함)
 ├── App.vue                       # 메인 애플리케이션 (사이드바)
@@ -184,11 +205,17 @@ public/
 - **CSS Variables**: 동적 테마 시스템
 - **SVG Icons**: 확장 가능한 벡터 아이콘
 
+### **차트 및 시각화**
+- **Chart.js**: 동적 차트 라이브러리
+- **SVG 기반 그래프**: 데이터 계보 시각화
+- **반응형 차트**: 모든 디바이스에서 최적화된 표시
+
 ### **개발 도구**
 - **Hot Module Replacement**: 실시간 코드 업데이트
 - **TypeScript 지원**: 타입 안전성 (선택사항)
 - **ESLint**: 코드 품질 관리
 - **Prettier**: 코드 포맷팅
+- **Vercel**: 프로덕션 배포 플랫폼
 
 ## 🌟 특별한 기능들
 
@@ -235,6 +262,97 @@ public/
 - 단일 페이지 애플리케이션(SPA) 구조
 - 동적 컴포넌트 로딩으로 메모리 효율성
 - 사이드바 기반 네비게이션
+
+## 🔗 백엔드 API 요구사항
+
+이 프론트엔드 애플리케이션은 다음과 같은 REST API 엔드포인트를 필요로 합니다:
+
+### **Dashboard Store API**
+```
+GET    /api/dashboards              # 대시보드 템플릿 목록
+GET    /api/dashboards/{id}         # 대시보드 상세 정보
+POST   /api/dashboards              # 신규 대시보드 생성
+POST   /api/dashboards/{id}/install # 대시보드 설치
+PUT    /api/dashboards/{id}/rating  # 대시보드 평가
+```
+
+### **승인관리 API**
+```
+# 상신 관련
+GET    /api/approvals/submitted     # 내가 요청한 승인 목록
+POST   /api/approvals/deploy        # 대시보드 배포 요청
+POST   /api/approvals/subscribe     # 대시보드 구독 요청
+POST   /api/approvals/data-access   # 데이터 접근 권한 요청
+
+# 승인 처리
+GET    /api/approvals/pending       # 승인 대기 목록
+PUT    /api/approvals/{id}/approve  # 승인 처리
+PUT    /api/approvals/{id}/reject   # 거절 처리
+
+# 결재 완료
+GET    /api/approvals/completed     # 결재 완료 목록
+```
+
+### **Data Catalog API**
+```
+GET    /api/catalog/tables          # 테이블 목록
+GET    /api/catalog/tables/{id}     # 테이블 상세 정보
+GET    /api/catalog/lineage/{id}    # 데이터 계보 정보
+GET    /api/catalog/quality/{id}    # 데이터 품질 메트릭
+```
+
+### **Producer360 API**
+```
+GET    /api/insights/kpi            # KPI 데이터
+GET    /api/insights/charts         # 차트 데이터
+GET    /api/insights/actions        # 액션 아이템
+```
+
+### **공통 API**
+```
+GET    /api/search                  # 통합 검색
+GET    /api/user/profile            # 사용자 프로필
+POST   /api/auth/login              # 로그인
+POST   /api/auth/logout             # 로그아웃
+```
+
+### **데이터 모델**
+
+#### Dashboard 모델
+```json
+{
+  "id": "string",
+  "title": "string",
+  "description": "string",
+  "category": "string",
+  "type": "template|custom",
+  "rating": "number",
+  "downloads": "number",
+  "tags": ["string"],
+  "image": "string",
+  "config": "object",
+  "createdAt": "datetime",
+  "updatedAt": "datetime"
+}
+```
+
+#### Approval 모델
+```json
+{
+  "id": "string",
+  "type": "deploy|dashboard|data",
+  "title": "string",
+  "description": "string",
+  "status": "pending|approved|rejected",
+  "priority": "high|medium|low",
+  "requester": "string",
+  "reviewer": "string",
+  "requestDate": "datetime",
+  "reviewDate": "datetime",
+  "reviewComment": "string",
+  "currentStep": "number"
+}
+```
 
 ## 🔧 커스터마이징
 
@@ -298,6 +416,28 @@ CSS 변수를 통해 브랜드 컬러를 적용했습니다:
 ## 📝 라이선스
 
 이 프로젝트는 MIT 라이선스 하에 배포됩니다. 자세한 내용은 `LICENSE` 파일을 참조하세요.
+
+## 🚀 배포
+
+### **프로덕션 배포**
+이 프로젝트는 Vercel에 배포되어 있습니다:
+- **빌드 도구**: Vite
+- **배포 플랫폼**: Vercel
+- **자동 배포**: main 브랜치 푸시 시 자동 배포
+
+### **로컬 개발 환경**
+```bash
+# 개발 서버 실행 (포트 3000)
+npm run dev
+
+# 프로덕션 빌드 테스트
+npm run build && npm run preview
+```
+
+## 🔄 관련 프로젝트
+
+이 프론트엔드 애플리케이션과 함께 사용할 백엔드 프로젝트:
+- **data-portal-backend**: Spring Boot 기반 REST API 서버 (별도 저장소)
 
 ## 📞 지원
 

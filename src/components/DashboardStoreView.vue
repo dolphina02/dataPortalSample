@@ -8,6 +8,10 @@
           <p class="page-subtitle">다양한 대시보드 템플릿을 찾아보고 설치하세요</p>
         </div>
         <div class="header-actions">
+          <button class="create-dashboard-btn" @click="createNewDashboard">
+            <IconSystem name="plus" :size="16" />
+            신규 대시보드
+          </button>
           <div class="search-box">
             <IconSystem name="search" :size="16" />
             <input 
@@ -263,6 +267,12 @@ const cancelNavigation = () => {
   showConfirmModal.value = false
 }
 
+const createNewDashboard = () => {
+  console.log('신규 대시보드 생성 페이지로 이동')
+  // 향후 라우터로 페이지 이동 구현
+  alert('신규 대시보드 생성 페이지로 이동합니다.')
+}
+
 const handleImageError = () => {
   imageError.value = true
 }
@@ -295,6 +305,57 @@ const filteredDashboards = computed(() => {
 }
 
 /* Header */
+.page-header {
+  margin-bottom: var(--space-6);
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.header-info h1 {
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  margin: 0 0 var(--space-2) 0;
+}
+
+.header-info p {
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.create-dashboard-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--lina-orange);
+  color: white;
+  border: none;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+}
+
+.create-dashboard-btn:hover {
+  background: var(--lina-yellow);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
 
 .search-box {
   display: flex;
@@ -636,13 +697,20 @@ const filteredDashboards = computed(() => {
 
 /* Responsive */
 @media (max-width: 768px) {
-  .store-header {
+  .header-content {
     flex-direction: column;
     align-items: flex-start;
   }
   
   .header-actions {
     width: 100%;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .create-dashboard-btn {
+    width: 100%;
+    justify-content: center;
   }
   
   .search-box {

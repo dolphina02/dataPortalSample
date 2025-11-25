@@ -194,6 +194,8 @@ import ApiView from './components/ApiView.vue'
 import ChubbDataView from './components/ChubbDataView.vue'
 import DataCatalogView from './components/DataCatalogView.vue'
 import InsightView from './components/InsightView.vue'
+import ApprovalView from './components/ApprovalView.vue'
+import CustomerJourneyView from './components/CustomerJourneyView.vue'
 
 // Reactive state
 const sidebarCollapsed = ref(false)
@@ -214,12 +216,14 @@ const mainMenuItems = [
 const analysisMenuItems = [
   { id: 'query', icon: 'code', label: 'SQL Editor', launch: '26년 1Q' },
   { id: 'text-to-sql', icon: 'zap', label: 'Text To SQL', launch: '26년 2Q' },
-  { id: 'stt-search', icon: 'message-circle', label: 'STT 키워드 검색', launch: '26년 1Q' }
+  { id: 'stt-search', icon: 'message-circle', label: 'STT 키워드 검색', launch: '26년 1Q' },
+  { id: 'customer-journey', icon: 'user', label: '고객 여정', launch: '26년 1Q' }
 ]
 
 const managementMenuItems = [
   { id: 'insight', icon: 'trending-up', label: 'Producer360', launch: '26년 1Q' },
   { id: 'data-catalog', icon: 'book-open', label: 'Data Catalog', launch: '26년 1Q' },
+  { id: 'approval', icon: 'check-circle', label: '승인관리', launch: '25년 4Q' },
   { id: 'model-management', icon: 'box', label: '모델 관리', launch: '26년 2Q' },
   { id: 'api', icon: 'api', label: 'API Explorer', launch: '26년 3Q' }
 ]
@@ -237,7 +241,9 @@ const viewComponents = {
   api: ApiView,
   insight: InsightView,
   'data-catalog': DataCatalogView,
-  'chubb-data': ChubbDataView
+  'chubb-data': ChubbDataView,
+  approval: ApprovalView,
+  'customer-journey': CustomerJourneyView
 }
 
 // Computed
