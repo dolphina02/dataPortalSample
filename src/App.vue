@@ -215,7 +215,7 @@ const mainMenuItems = [
 
 const analysisMenuItems = [
   { id: 'query', icon: 'code', label: 'SQL Editor', launch: '26년 1Q' },
-  { id: 'text-to-sql', icon: 'zap', label: 'Text To SQL', launch: '26년 2Q' },
+  { id: 'text-to-sql', icon: 'headphones', label: 'AI TMR Assistant', launch: '26년 2Q' },
   { id: 'stt-search', icon: 'message-circle', label: 'STT 키워드 검색', launch: '26년 1Q' },
   { id: 'customer-journey', icon: 'user', label: '고객 여정', launch: '26년 1Q' }
 ]
